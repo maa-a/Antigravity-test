@@ -8,12 +8,12 @@
 usage:
   python extract_data.py --out DIR \
       --venue 東京=path.xlsx --venue 名古屋=path.xlsx ... \
-      [--stock path.xlsx]
+      --ledger path.xlsx
 
 出力（--out ディレクトリ配下）:
   sales.json  会場別 商品別の日次販売・在庫
   att.json    会場別 日次入場者数
-  stock.json  商品別 実在庫（理論CX＋理論DB＋前会場返送良品）
+  stock.json  商品別 残在庫想定（在庫フロー台帳の最終「実在庫」列）
 """
 import argparse
 import datetime
@@ -183,13 +183,81 @@ def read_stock(path, return_sheet=None):
     return out
 
 
+LEDGER_SHEET_KEY = '検品差異'
+
+
+def read_ledger(path, sheet=None):
+    """在庫フロー台帳（【清算(卸値67％)】…_検品差異）を読む。
+
+    会場ごとに「追加発注 → 理論在庫 → 販売数 → 理論在庫 → レッグス検品数量 → 実在庫」が
+    横に並んだ台帳。**最終列（最後の会場の「実在庫」）が現時点の残在庫想定**であり、
+    これが発注判断の唯一の正解。同じファイルの「元データ」「在庫合算」シートは
+    池袋終了時点など古いスナップショットなので使ってはいけない。
+    """
+    wb = openpyxl.load_workbook(path, data_only=True)
+    sn = sheet or next((x for x in wb.sheetnames if LEDGER_SHEET_KEY in x), None)
+    if sn is None:
+        raise RuntimeError('%s: 台帳シート（%s を含む名前）が見つからない' % (path, LEDGER_SHEET_KEY))
+    ws = wb[sn]
+    hr = next((r for r in range(1, 40) if ws.cell(r, 1).value == '品目コード'), None)
+    if hr is None:
+        raise RuntimeError('%s/%s: ヘッダ行（品目コード）が見つからない' % (path, sn))
+    stage = hr - 1                     # 「池袋開催中」「梅田まで(SET)」等の段階ラベル行
+
+    def cols(label):
+        return [c for c in range(1, ws.max_column + 1) if ws.cell(hr, c).value == label]
+
+    c_add = cols('追加発注')           # 会場ごとの追加発注
+    c_init = (cols('初回発注') or [None])[0]
+    c_setn = (cols('発注総数(SET数)') or [None])[0]
+    c_totn = (cols('発注総数') or [None])[0]
+    c_real = [c for c in range(1, ws.max_column + 1)
+              if str(ws.cell(hr, c).value or '').startswith('実在庫')]
+    if not c_real:
+        raise RuntimeError('%s/%s: 実在庫列が見つからない' % (path, sn))
+    last = c_real[-1]
+    stages = [str(ws.cell(stage, c).value or '') for c in c_real]
+    print('  台帳シート: %s' % sn)
+    print('  実在庫の段階: %s' % ' → '.join(stages))
+    print('  ★採用する残在庫列 = %s「%s」（%s）'
+          % (gcl_(last), ws.cell(hr, last).value, stages[-1]))
+
+    # 台帳は列によって単位が混在する（SET商品の発注数・理論在庫はバラ、実在庫はSET）。
+    # 単位が確実に「販売単位」で揃っているのは実在庫列だけなので、在庫はそこだけを使う。
+    # 発注総数は参考値として持つが、SET商品では単位が信頼できないため判定には使わない。
+    out = {}
+    for r in range(hr + 1, ws.max_row + 1):
+        try:
+            j = int(ws.cell(r, 2).value)
+        except (TypeError, ValueError):
+            continue
+        g = lambda c: ws.cell(r, c).value if isinstance(ws.cell(r, c).value, (int, float)) else 0
+        setn, totn = (g(c_setn) if c_setn else 0), (g(c_totn) if c_totn else 0)
+        size = round(totn / setn) if setn and totn and round(totn / setn) >= 1 else 1
+        ordered = (g(c_init) if c_init else 0) + sum(g(c) for c in c_add)
+        out[j] = dict(
+            stock=round(g(last)),                       # ★採用する残在庫想定（販売単位）
+            stock_stage=stages[-1],
+            stages=stages,
+            hist=[round(g(c)) for c in c_real],         # 会場ごとの実在庫推移（販売単位）
+            set_size=size,                              # 1＝単品、2以上＝SET商品
+            ordered_raw=round(ordered),                 # 参考：台帳上の累計発注（単位混在）
+        )
+    return out
+
+
+def gcl_(c):
+    from openpyxl.utils import get_column_letter
+    return get_column_letter(c)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', required=True)
     ap.add_argument('--venue', action='append', default=[], metavar='NAME=PATH')
-    ap.add_argument('--stock', default=None)
-    ap.add_argument('--return-sheet', default=None,
-                    help='返送良品の検品結果シート名。省略時は先頭の月.日が最大のシートを採用')
+    ap.add_argument('--ledger', required=True,
+                    help='在庫フロー台帳のxlsx（【清算…_検品差異】シートを含むもの）')
+    ap.add_argument('--ledger-sheet', default=None, help='台帳シート名を明示する場合')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
 
@@ -206,15 +274,15 @@ def main():
     json.dump(sales, open(os.path.join(a.out, 'sales.json'), 'w'), ensure_ascii=False)
     json.dump(att, open(os.path.join(a.out, 'att.json'), 'w'))
 
-    if a.stock:
-        st = read_stock(a.stock, a.return_sheet)
-        json.dump({str(k): v for k, v in st.items()},
-                  open(os.path.join(a.out, 'stock.json'), 'w'))
-        print('実在庫  商品%4d  理論CX%s ＋ 理論DB%s ＋ 返送良品%s ＝ %s'
-              % (len(st), format(sum(v['cx'] for v in st.values()), ','),
-                 format(sum(v['db'] for v in st.values()), ','),
-                 format(sum(v['ret'] for v in st.values()), ','),
-                 format(sum(v['real'] for v in st.values()), ',')))
+    led = read_ledger(a.ledger, a.ledger_sheet)
+    json.dump({str(k): v for k, v in led.items()},
+              open(os.path.join(a.out, 'stock.json'), 'w'))
+    print('残在庫  商品%4d  残在庫合計%s  ／ SET商品%d件（発注数はバラ単位のため在庫判定には使わない）'
+          % (len(led), format(sum(v['stock'] for v in led.values()), ','),
+             sum(1 for v in led.values() if v['set_size'] > 1)))
+    bad = [j for j, v in led.items() if v['stock'] < 0]
+    if bad:
+        warns.append('台帳の残在庫が負の品目 %d件: %s' % (len(bad), bad[:5]))
 
     if warns:
         print('\n[要確認] 元データの整合性:', file=sys.stderr)

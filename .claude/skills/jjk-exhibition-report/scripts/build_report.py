@@ -32,7 +32,11 @@ OUT = _A.out
 
 D = json.load(open(SP + 'sales.json'))
 ATT = json.load(open(SP + 'att.json'))
-INV = json.load(open(SP + 'stock.json'))          # 実在庫（理論CX+DB+前会場返送良品）
+LED = json.load(open(SP + 'stock.json'))          # 在庫フロー台帳の残在庫想定
+INV = {k: dict(real=v['stock'], hist=v['hist'], stages=v['stages'],
+               set_size=v['set_size']) for k, v in LED.items()}
+STOCK_STAGE = next(iter(LED.values()))['stock_stage']
+STOCK_STAGES = next(iter(LED.values()))['stages']
 T = [list(x) for x in CFG.TARGET]
 TJ = [j for j, _ in T]
 EXCL = CFG.EXCLUDE_CATEGORIES
@@ -191,9 +195,6 @@ _r3 = [x * _ach2 for x in _r2[:4]] + [0.50]
 _futq2 = sum(TKA * x * _lsha / _unit for x in _r2)
 _futq3 = sum(TKA * x * _lsha / _unit for x in _r3)
 _realtot = sum(INV[str(j)]['real'] for j in TJ)
-_cxtot = sum(INV[str(j)]['cx'] for j in TJ)
-_dbtot = sum(INV[str(j)]['db'] for j in TJ)
-_rettot = sum(INV[str(j)]['ret'] for j in TJ)
 _whtot = _realtot - _avail
 _resup = sum(max(0, PRED[j] - R('札幌', j)['avail']) for j in TJ)
 _supply = _realtot - TS
@@ -265,13 +266,13 @@ blocks = [
         ('　シナリオ③札幌実績連動(保守)',
          '②に札幌の計画比達成率%.1f%%を乗算 → 石川5.83%%・仙台7.29%%・神戸5.61%%・鳥取4.21%%（凱旋50%%据置）'
          '→ 必要数 %s個' % (_ach2 * 100, f'{_futq3:,.0f}')),
-        ('★2026/7/8 実在庫の反映',
-         '実在庫 %s個（理論CX催事%s＋DBS倉庫%s＋梅田返送良品%s）を反映。'
-         % (f'{_realtot:,}', f'{_cxtot:,}', f'{_dbtot:,}', f'{_rettot:,}')),
+        ('★残在庫想定の反映',
+         '在庫フロー台帳の「%s」列 %s個を採用（梅田会場後の検品結果まで反映済み）。'
+         % (STOCK_STAGE, f'{_realtot:,}')),
         ('　札幌への追納（倉庫から）',
          '%s個。運営欠品報告への対応分で、追加生産ではなく倉庫在庫から出荷する' % f'{_resup:,}'),
         ('　石川以降 供給可能在庫',
-         '%s個 ＝ 7/8実在庫%s個 − 札幌 会期20日予測販売%s個（札幌への追納と会期末返送を相殺した正味）'
+         '%s個 ＝ 残在庫%s個 − 札幌 会期20日予測販売%s個（札幌への追納と会期末返送を相殺した正味）'
          % (f'{_supply:,}', f'{_realtot:,}', f'{TS:,}')),
         ('　全体過不足',
          '供給可能%s個 − 必要%s個 ＝ +%s個の余剰。全体では追加生産は不要な水準。'
@@ -336,7 +337,7 @@ blocks = [
         ('', '発注は「石川〜鳥取(4会場・%s個)」を先行確定し、凱旋分は会期確定後に第2弾発注とするのが安全。'
          % f'{_futq - _kq:,.0f}'),
         ('★過剰在庫のほうが深刻',
-         '実在庫%s個に対し石川以降の必要数は%s個。差引%s個（実在庫の%.0f%%）が余剰となる見込み。'
+         '残在庫%s個に対し石川以降の必要数は%s個。差引%s個（残在庫の%.0f%%）が余剰となる見込み。'
          % (f'{_realtot:,}', f'{_futq:,.0f}', f'{_supply - _futq:,.0f}', (_supply - _futq) / _realtot * 100)),
         ('', '特に渋谷事変ポストカードセット(供給可能%s個 vs 必要%s個)、懐玉・玉折ポストカードセット(%s vs %s)は'
          % (f'{_sup_of[4515142545112]:,}', f'{_mix2[4515142545112] * _futq:,.0f}',
@@ -399,7 +400,7 @@ blocks = [
         ('', '会期19日間（3/18-4/5）の完全実績となった。これに伴い名古屋の会期倍率gは推計2.438倍→実績2.215倍に修正。'),
         ('LEGS＝42SKU', '各会場の商品分類「記念商品/レッグス」「レッグス/イベント記念」は全会場で本42SKUと完全一致'),
         ('物販売上の定義', 'レジ袋代・音声ガイド・当日券を除いた商品売上（税込）。会場報告の総売上とは一致しない場合がある'),
-        ('SPJ倉庫在庫', '提供データに中央倉庫在庫が無いため、追加生産必要数は「札幌会期末残在庫のみスライド」の前提。'),
+        ('残在庫の出所', '在庫フロー台帳（会場ごとの追加発注→販売→レッグス検品を積み上げた表）の最終実在庫列。'),
         ('', '実際の発注前に倉庫在庫と過去会場の返品在庫を相殺すること（前提・入力シートで控除可能）。'),
         ('神戸阪急の会場比率', '東京対比の指定が無いため12%を仮置き。要確認事項。'),
         ('仙台の会場比率', 'ユーザー指定13%を採用。コナンカフェ2026実績（東京対比10.5%）とは2.5pt乖離あり。'),
@@ -551,8 +552,9 @@ P['mix_s'] = inp('商品別按分：札幌20日予測の構成比ウェイト', 
 
 sec_('■ ④追加発注 前提')
 P['safe'] = inp('安全率（不足数に対する上乗せ）', CFG.SAFETY, PCT, '推奨発注数＝不足数×(1+安全率)を切り上げ')
-P['spj'] = calc('［参考］2026/7/8時点 実在庫（全品計）', sum(INV[str(j)]['real'] for j in TJ), INT,
-                '理論在庫(CX催事＋DBS倉庫)＋梅田返送良品。商品別の実数を③⑧⑩シートで直接使用（按分ではない）')
+P['spj'] = calc('［参考］残在庫想定 全品計（%s）' % STOCK_STAGE,
+                sum(INV[str(j)]['real'] for j in TJ), INT,
+                '在庫フロー台帳の最終実在庫列。商品別の実数を③⑧⑩⑪シートで直接使用')
 P['slide'] = inp('札幌 会期末残在庫のスライド率', 1.00, PCT, '札幌終了在庫を石川以降へ回せる割合')
 P['buf'] = inp('発注〜納品バッファ日数（輸送・検品）', CFG.ORDER_BUFFER_DAYS, '0"日"',
                '発注期限＝会場初日 − 生産日数 − 本バッファ。⑪シートで使用')
@@ -882,10 +884,8 @@ hdrfmt(ws, r, r, 8)
 r = ftot + 2
 ws.cell(r, 1, '■ 在庫収支（LEGS 42SKU 合計）').font = SEC
 r += 1
-bal = [('2026/7/8時点 実在庫（総計）', sum(INV[str(j)]['real'] for j in TJ), INT,
-        '理論在庫 CX催事%s＋DBS倉庫%s ＋ 梅田返送良品%s（7/8検品結果）'
-        % (f"{sum(INV[str(j)]['cx'] for j in TJ):,}", f"{sum(INV[str(j)]['db'] for j in TJ):,}",
-           f"{sum(INV[str(j)]['ret'] for j in TJ):,}")),
+bal = [('残在庫想定（%s／総計）' % STOCK_STAGE, sum(INV[str(j)]['real'] for j in TJ), INT,
+        '在庫フロー台帳の最終「実在庫」列。会場ごとの追加発注→販売→検品を積み上げた値'),
        ('　うち札幌会場へ納品（7/21）', '=%s!S%d' % (S1, tot), INT, '札幌の販売可能数'),
        ('　差引 倉庫残（石川以降へ即出荷可）', '=B%d-B%d' % (r, r + 1), INT, '札幌へ引き当てた分を除いた手元在庫'),
        ('札幌 会期20日 予測販売数', '=%s!P%d' % (S1, tot), INT, ''),
@@ -928,7 +928,7 @@ PH = [('No.', 5, NAVY), ('JAN', 15, NAVY), ('商品名', 44, NAVY),
 for nm, per, dd, ratio, note in FUTURE:
     PH.append((nm.split(' ')[0] + '\n必要数', 11, FUT))
 PH += [('石川以降\n必要数 計', 12, JUDG),
-       ('2026/7/8\n実在庫', 11, PatternFill('solid', fgColor='375623')),
+       ('★残在庫想定\n(梅田会場後)', 11, PatternFill('solid', fgColor='375623')),
        ('うち札幌\n納品済', 10, PatternFill('solid', fgColor='375623')),
        ('差引\n倉庫残', 10, PatternFill('solid', fgColor='375623')),
        ('札幌へ\n追納必要数', 11, ALERT), ('札幌会期末\n返送(スライド)', 12, JUDG),
@@ -1523,22 +1523,26 @@ for a, b in [
 ws = wb.create_sheet('⑧実在庫(7-8)明細')
 ws.sheet_view.showGridLines = False
 ws.freeze_panes = 'D7'
-ws['A1'] = '⑧ 2026/7/8時点 実在庫 明細と欠品算出'
+ws['A1'] = '⑧ 残在庫想定（%s）の明細と欠品算出' % STOCK_STAGE
 ws['A1'].font = TITLE
-ws['A2'] = ('実在庫 ＝ 理論在庫（CX01 CX催事 ＋ DB00 DBS倉庫）＋ 梅田(大阪)会場 返送良品（2026/7/8 レッグス倉庫検品結果）')
+ws['A2'] = ('残在庫想定 ＝ 在庫フロー台帳（【清算(卸値67％)】…_検品差異）の「%s」列。'
+            '会場ごとの 追加発注→販売→レッグス検品 を積み上げた最終値で、梅田会場後の検品結果まで反映済み'
+            % STOCK_STAGE)
 ws['A2'].font = NOTE
-ws['A3'] = ('この実在庫から札幌会場へ7/21に出荷（＝札幌の販売可能数）。'
-            '石川以降に使えるのは「倉庫残 ＋ 札幌会期末の返送見込（スライド）」')
+ws['A3'] = ('この残在庫から札幌会場へ7/21に出荷（＝札幌の販売可能数）。'
+            '石川以降に使えるのは「倉庫残 − 札幌への追納 ＋ 札幌会期末の返送見込」＝ 残在庫 − 札幌会期予測販売数')
 ws['A3'].font = NOTE
-ws['A4'] = '※梅田返送良品は各商品の大阪会期末残とほぼ一致することを確認済み（検品差異・不良分を除く）'
+ws['A4'] = ('※同ファイルの「元データ」「在庫合算」「在庫元データ(12月清算後)」シートは池袋終了時点の古い'
+            'スナップショット（合計183,696個）であり、残在庫として使ってはいけない。'
+            'ポストカードセット2種・宿儺の指風お菓子はSET商品で、台帳の発注数はバラ単位・実在庫はSET単位')
 ws['A4'].font = NOTE
 
-IH = [('No.', 5, NAVY), ('JAN', 15, NAVY), ('商品名', 44, NAVY), ('税込単価', 9, NAVY),
-      ('理論在庫\nCX催事', 10, PatternFill('solid', fgColor='375623')),
-      ('理論在庫\nDBS倉庫', 10, PatternFill('solid', fgColor='375623')),
-      ('梅田返送\n良品(7/8検品)', 12, PatternFill('solid', fgColor='375623')),
-      ('7/8時点\n実在庫 計', 12, PatternFill('solid', fgColor='375623')),
-      ('実在庫\n金額(税込)', 13, PatternFill('solid', fgColor='375623')),
+IH = [('No.', 5, NAVY), ('JAN', 15, NAVY), ('商品名', 44, NAVY), ('税込単価', 9, NAVY)]
+for _st in STOCK_STAGES[:-1]:
+    IH.append(('実在庫\n%s' % _st.replace('(SET)', ''), 11, PatternFill('solid', fgColor='7B7B7B')))
+IH += [('★残在庫想定\n%s' % STOCK_STAGE.replace('(SET)', ''), 13,
+        PatternFill('solid', fgColor='375623')),
+      ('残在庫\n金額(税込)', 13, PatternFill('solid', fgColor='375623')),
       ('札幌へ納品\n(7/21)', 11, PatternFill('solid', fgColor=VF['札幌'])),
       ('札幌 会期20日\n予測販売', 12, PatternFill('solid', fgColor=VF['札幌'])),
       ('札幌 会期末\n返送見込', 11, PatternFill('solid', fgColor=VF['札幌'])),
@@ -1565,10 +1569,8 @@ for i, (jan, nm) in enumerate(T):
     iv = INV[str(jan)]
     ws.cell(rr, 1, i + 1); ws.cell(rr, 2, str(jan)); ws.cell(rr, 3, nm)
     ws.cell(rr, 4, R('札幌', jan)['price']).number_format = YEN
-    ws.cell(rr, 5, iv['cx']).number_format = INT
-    ws.cell(rr, 6, iv['db']).number_format = INT
-    ws.cell(rr, 7, iv['ret']).number_format = INT
-    ws.cell(rr, 8, '=E%d+F%d+G%d' % (rr, rr, rr)).number_format = INT
+    for _k, _h in enumerate(iv['hist']):
+        ws.cell(rr, 5 + _k, _h).number_format = INT
     ws.cell(rr, 9, '=H%d*D%d' % (rr, rr)).number_format = YEN
     ws.cell(rr, 10, '=%s!S%d' % (S1, r0 + i)).number_format = INT
     ws.cell(rr, 11, '=%s!P%d' % (S1, r0 + i)).number_format = INT
@@ -1589,9 +1591,8 @@ for i, (jan, nm) in enumerate(T):
                    '◎倉庫からの追加納品で即対応可能' if _wh > 0 else '×倉庫在庫なし'))
         if '追納困難' in _sh:
             nts.append('★「追納困難」との回答だが実在庫%s個あり。出荷可否を要再確認' % f'{_wh:,}')
-    if iv['ret'] and abs(iv['ret'] - (R('大阪', jan)['avail'] - R('大阪', jan)['total'])) > 5:
-        nts.append('梅田返送良品%s個と大阪会期末残%s個に差異あり（検品差異・不良控除）'
-                   % (f"{iv['ret']:,}", f"{R('大阪', jan)['avail'] - R('大阪', jan)['total']:,}"))
+    if iv['set_size'] > 1:
+        nts.append('SET商品（1販売単位＝%d個）。台帳の発注数はバラ単位' % iv['set_size'])
     ws.cell(rr, 21, ' ／ '.join(nts))
 ws.cell(itot, 3, '合計（LEGS 42SKU）')
 for c in [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]:
