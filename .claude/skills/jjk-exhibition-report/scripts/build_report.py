@@ -48,6 +48,16 @@ PROD = {j: CFG.PROD_MONTHS[i] for i, (j, _) in enumerate(T)}
 PROD_NOTE = CFG.PROD_NOTE
 VEN_START, BASEDATE = CFG.VEN_START, CFG.BASEDATE
 PAST_ORDER, PLAN_GOODS, FUTURE = CFG.PAST_ORDER, CFG.PLAN_GOODS, CFG.FUTURE
+RESUPPLY = {str(k): v for k, v in getattr(CFG, 'RESUPPLY', {}).items()}
+RESUPPLY_DETAIL = getattr(CFG, 'RESUPPLY_DETAIL', [])
+RESUPPLY_NOTE = getattr(CFG, 'RESUPPLY_NOTE', '')
+
+# 開催中会場への追納を販売可能数に加算する（倉庫→会場の移動なので全社在庫は不変）。
+for _j, _q in RESUPPLY.items():
+    _x = D[CFG.CURRENT]['rows'].get(_j)
+    if _x:
+        _x['avail'] += _q
+        _x['stock'] += _q
 
 # 元データに小数が混じることがある（名古屋の販売可能数など）。整数に丸めて扱う
 for _v in D:
@@ -269,8 +279,12 @@ blocks = [
         ('★残在庫想定の反映',
          '在庫フロー台帳の「%s」列 %s個を採用（梅田会場後の検品結果まで反映済み）。'
          % (STOCK_STAGE, f'{_realtot:,}')),
-        ('　札幌への追納（倉庫から）',
-         '%s個。運営欠品報告への対応分で、追加生産ではなく倉庫在庫から出荷する' % f'{_resup:,}'),
+        ('★札幌への追納（実施済）',
+         '%s：%s　計%s個。倉庫在庫からの出荷なので全社在庫は不変'
+         % (RESUPPLY_NOTE, '／'.join('%s %s個' % (dict(T)[int(k)], f'{v:,}')
+                                    for k, v in RESUPPLY.items()), f'{sum(RESUPPLY.values()):,}')),
+        ('　追納後になお必要な追納',
+         '%s個（会期20日予測が販売可能数を上回る残差）' % f'{_resup:,}'),
         ('　石川以降 供給可能在庫',
          '%s個 ＝ 残在庫%s個 − 札幌 会期20日予測販売%s個（札幌への追納と会期末返送を相殺した正味）'
          % (f'{_supply:,}', f'{_realtot:,}', f'{TS:,}')),
@@ -601,7 +615,7 @@ HD = [('No.', 5, NAVY), ('JAN', 15, NAVY), ('商品名', 44, NAVY), ('税込\n�
       ('大阪\n倍率g', 9, PatternFill('solid', fgColor=VF['大阪'])),
       ('採用\n倍率g', 9, BLUE),
       ('札幌\n会期20日\n予測販売数', 12, JUDG), ('札幌\n予測販売金額', 13, JUDG),
-      ('札幌\n数量構成比', 10, JUDG), ('札幌\n販売可能数', 11, JUDG),
+      ('札幌\n数量構成比', 10, JUDG), ('札幌\n販売可能数\n(追納込)', 12, JUDG),
       ('予測\n消化率', 9, JUDG), ('会期末\n残在庫', 10, JUDG),
       ('会期中\n過不足', 10, JUDG), ('会期中\n在庫判定', 13, JUDG)]
 hr = 6
@@ -886,7 +900,8 @@ ws.cell(r, 1, '■ 在庫収支（LEGS 42SKU 合計）').font = SEC
 r += 1
 bal = [('残在庫想定（%s／総計）' % STOCK_STAGE, sum(INV[str(j)]['real'] for j in TJ), INT,
         '在庫フロー台帳の最終「実在庫」列。会場ごとの追加発注→販売→検品を積み上げた値'),
-       ('　うち札幌会場へ納品（7/21）', '=%s!S%d' % (S1, tot), INT, '札幌の販売可能数'),
+       ('　うち札幌会場へ納品（初回＋追納）', '=%s!S%d' % (S1, tot), INT,
+        '札幌の販売可能数。%s（LEGS計%s個）を含む' % (RESUPPLY_NOTE, f'{sum(RESUPPLY.values()):,}')),
        ('　差引 倉庫残（石川以降へ即出荷可）', '=B%d-B%d' % (r, r + 1), INT, '札幌へ引き当てた分を除いた手元在庫'),
        ('札幌 会期20日 予測販売数', '=%s!P%d' % (S1, tot), INT, ''),
        ('　うち札幌へ追納が必要', 'PLACEHOLDER_RESUP', INT,
@@ -1007,7 +1022,7 @@ ws['A3'].font = NOTE
 JH = [('No.', 5, NAVY), ('JAN', 15, NAVY), ('商品名', 44, NAVY), ('税込単価', 9, NAVY),
       ('札幌\n初6日実績', 10, PatternFill('solid', fgColor=VF['札幌'])),
       ('札幌\n会期20日予測', 12, PatternFill('solid', fgColor=VF['札幌'])),
-      ('札幌\n販売可能数', 11, PatternFill('solid', fgColor=VF['札幌'])),
+      ('札幌\n販売可能数\n(追納込)', 12, PatternFill('solid', fgColor=VF['札幌'])),
       ('札幌\n予測消化率', 10, PatternFill('solid', fgColor=VF['札幌'])),
       ('札幌会期中\n過不足', 11, ALERT), ('札幌会期中\n判定', 15, ALERT), ('札幌会期中\n推奨発注数', 12, ALERT),
       ('石川以降\n必要数', 11, FUT), ('札幌からの\nスライド', 11, FUT), ('7/8実在庫の\n倉庫残', 12, FUT),
@@ -2034,18 +2049,21 @@ for i, h in enumerate(['商品', '発注／納品日', '充当先', '備考'], 1
     c.fill = NAVY
     c.font = H2
 po0 = r + 1
-for k, (a, b, c_, d_) in enumerate(PAST_ORDER):
+_PO = list(PAST_ORDER) + [('― 開催中会場への追納 ―', '', '', RESUPPLY_NOTE)] + [
+    (nm, dt, '札幌会場（%s個）' % f'{q:,}', note) for dt, nm, q, note in RESUPPLY_DETAIL]
+for k, (a, b, c_, d_) in enumerate(_PO):
     ws.cell(po0 + k, 1, a)
     ws.cell(po0 + k, 2, b)
     ws.cell(po0 + k, 3, c_)
     ws.cell(po0 + k, 4, d_)
-body(ws, po0, po0 + len(PAST_ORDER) - 1, 4, namecol=1)
-for k in range(len(PAST_ORDER)):
+body(ws, po0, po0 + len(_PO) - 1, 4, namecol=1)
+for k in range(len(_PO)):
     for cx in (1, 3, 4):
         ws.cell(po0 + k, cx).alignment = LFT
+ws.cell(po0 + len(PAST_ORDER), 1).font = BD
 hdrfmt(ws, r, r, 4)
 
-r = po0 + len(PAST_ORDER) + 1
+r = po0 + len(_PO) + 1
 ws.cell(r, 1, '■ 商品別 会場別 在庫引当と発注期限').font = SEC
 r += 1
 VH = [('No.', 5, NAVY), ('JAN', 15, NAVY), ('商品名', 42, NAVY),
