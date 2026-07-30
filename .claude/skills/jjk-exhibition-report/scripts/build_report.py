@@ -222,6 +222,22 @@ for j in TJ:
         if rem < 0 and first is None:
             first = fn
     _alloc[j] = (first, max(0, -rem))
+def _venue_of(j):
+    """会場順に在庫を引き当てて、最初に在庫が尽きる会場を返す（無ければ None）。"""
+    return _alloc[j][0]
+
+
+def _dl_formula(j, base_row=None):
+    """発注期限の数式。会期初日 − 生産日数×30 − バッファ（バッファは入力セル連動）。"""
+    fn = _alloc[j][0]
+    if fn is None:
+        return ''
+    if PROD[j] is None:
+        return '再生産不可'
+    d = VEN_START[fn]
+    return '=DATE(%d,%d,%d)-%d-%s' % (d.year, d.month, d.day, round(PROD[j] * 30), pr('buf'))
+
+
 _addlist = sorted([(dict(T)[j], _alloc[j][1], _alloc[j][0], PROD[j]) for j in TJ if _alloc[j][1] > 0],
                   key=lambda x: -x[1])
 _addprod = sum(x[1] for x in _addlist)
@@ -1017,7 +1033,8 @@ ws['A1'] = '④ 追加発注 必要有無の判定（札幌会期中 ＋ 石川�
 ws['A1'].font = TITLE
 ws['A2'] = '【札幌会期中】会期20日予測 vs 札幌への納品済 販売可能数　／　【石川以降】5会場必要数 vs 札幌会期末残在庫＋倉庫在庫　※2026/7/28 SPJ様欠品報告を突合'
 ws['A2'].font = NOTE
-ws['A3'] = '推奨発注数＝不足数×(1+安全率10%)を切り上げ。安全率は「前提・入力」シートで変更可'
+ws['A3'] = ('推奨発注数＝不足数×(1+安全率10%)を切り上げ。'
+            'T〜W列に欠品発生会場・最終発注期限（会期初日−生産日数−バッファ）・残日数・緊急度を記載')
 ws['A3'].font = NOTE
 JH = [('No.', 5, NAVY), ('JAN', 15, NAVY), ('商品名', 44, NAVY), ('税込単価', 9, NAVY),
       ('札幌\n初6日実績', 10, PatternFill('solid', fgColor=VF['札幌'])),
@@ -1028,6 +1045,8 @@ JH = [('No.', 5, NAVY), ('JAN', 15, NAVY), ('商品名', 44, NAVY), ('税込単�
       ('石川以降\n必要数', 11, FUT), ('札幌からの\nスライド', 11, FUT), ('7/8実在庫の\n倉庫残', 12, FUT),
       ('石川以降\n過不足', 11, FUT), ('石川以降\n判定', 15, FUT), ('石川以降\n推奨発注数', 12, FUT),
       ('発注合計\n(札幌+石川以降)', 14, JUDG), ('発注金額\n(税込小売換算)', 14, JUDG),
+      ('欠品発生\n会場', 20, ALERT), ('最終発注期限', 13, ALERT),
+      ('基準日からの\n残日数', 12, ALERT), ('発注の緊急度', 16, ALERT),
       ('優先度', 10, JUDG), ('運営 欠品報告\n(7/28 SPJ様)', 16, ALERT),
       ('モデル×現場\n突合', 16, ALERT), ('備考', 50, GREY)]
 hr4 = 6
@@ -1061,11 +1080,22 @@ for i, (jan, nm) in enumerate(T):
     ws.cell(rr, 19, '=R%d*D%d' % (rr, rr)).number_format = YEN
     _sh = SHORTAGE.get(str(jan), '')
     _nores = '追納困難' in _sh
-    ws.cell(rr, 20, '=IF(U%d<>"",IF(%s,"S:現場欠品(追納不可)","S:現場欠品"),IF(I%d>0,"A:会期中欠品",'
+    _fn = _venue_of(jan)
+    ws.cell(rr, 20, _fn if _fn else '—')
+    _dlf = _dl_formula(jan)
+    ws.cell(rr, 21, _dlf if _dlf else '')
+    if _dlf.startswith('='):
+        ws.cell(rr, 21).number_format = 'yyyy/m/d'
+    ws.cell(rr, 22, '=IF(OR(U%d="",U%d="再生産不可"),"",U%d-%s)' % (rr, rr, rr, pr('base'))
+            ).number_format = '#,##0"日"'
+    ws.cell(rr, 23, '=IF(T%d="—","—",IF(U%d="再生産不可","×再生産不可",'
+            '_xlfn.IFS(V%d<0,"★期限超過",V%d<=30,"★至急(30日以内)",V%d<=90,"要着手(90日以内)",'
+            'TRUE(),"余裕あり")))' % (rr, rr, rr, rr, rr))
+    ws.cell(rr, 24, '=IF(Y%d<>"",IF(%s,"S:現場欠品(追納不可)","S:現場欠品"),IF(I%d>0,"A:会期中欠品",'
             'IF(O%d>1000,"B:大口",IF(O%d>0,"C:通常","D:不要"))))'
             % (rr, 'TRUE()' if _nores else 'FALSE()', rr, rr, rr))
-    ws.cell(rr, 21, _sh if _sh else '')
-    ws.cell(rr, 22, '=IF(U%d<>"",IF(I%d>0,"◎ 一致（モデルも会期中欠品を検知）",'
+    ws.cell(rr, 25, _sh if _sh else '')
+    ws.cell(rr, 26, '=IF(Y%d<>"",IF(I%d>0,"◎ 一致（モデルも会期中欠品を検知）",'
             'IF(H%d>=0.7,"○ 整合（予測消化率70%%超）","△ モデル未検知：現場報告を優先")),'
             'IF(I%d>0,"▲ モデルのみ検知：現場に在庫状況を確認","—"))' % (rr, rr, rr, rr))
     _wh = INV[str(jan)]['real'] - R('札幌', jan)['avail']
@@ -1086,7 +1116,7 @@ for i, (jan, nm) in enumerate(T):
         x = R(v, jan)
         if x['avail'] and x['total'] / x['avail'] >= 0.95:
             nt.append('%s会場で完売（実績が在庫上限で頭打ち＝予測は控えめ）' % v)
-    ws.cell(rr, 23, ' ／ '.join(nt))
+    ws.cell(rr, 27, ' ／ '.join(nt))
 ws.cell(jtot, 3, '合計（LEGS 42SKU）')
 for c in [5, 6, 7, 9, 11, 12, 13, 14, 15, 17, 18, 19]:
     L = gcl(c)
@@ -1094,18 +1124,25 @@ for c in [5, 6, 7, 9, 11, 12, 13, 14, 15, 17, 18, 19]:
 ws.cell(jtot, 8, '=IFERROR(F%d/G%d,0)' % (jtot, jtot)).number_format = PCT
 ws.cell(jtot, 10, '=COUNTIF(J%d:J%d,"要 追加発注")&"品目"' % (j0, jtot - 1))
 ws.cell(jtot, 16, '=COUNTIF(P%d:P%d,"要 追加生産")&"品目"' % (j0, jtot - 1))
-ws.cell(jtot, 21, '=COUNTIF(U%d:U%d,"<>")&"品目 報告あり"' % (j0, jtot - 1))
-body(ws, j0, jtot, 23)
+ws.cell(jtot, 21, '=IF(COUNT(U%d:U%d)=0,"",TEXT(MIN(U%d:U%d),"yyyy/m/d")&" が最短期限")'
+        % (j0, jtot - 1, j0, jtot - 1))
+ws.cell(jtot, 23, '=COUNTIF(W%d:W%d,"★期限超過")&"品目が期限超過／"&COUNTIF(W%d:W%d,"★至急(30日以内)")&"品目が至急"'
+        % (j0, jtot - 1, j0, jtot - 1))
+ws.cell(jtot, 25, '=COUNTIF(Y%d:Y%d,"<>")&"品目 報告あり"' % (j0, jtot - 1))
+body(ws, j0, jtot, 27)
 for rr in range(j0, jtot):
-    for _c in (21, 22, 23):
+    for _c in (20, 23, 25, 26, 27):
         ws.cell(rr, _c).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
-totrow(ws, jtot, 23)
-hdrfmt(ws, hr4, hr4, 23)
+totrow(ws, jtot, 27)
+hdrfmt(ws, hr4, hr4, 27)
 for rng, cond, fill in [('J', '$J%d="要 追加発注"', ALERT), ('J', '$J%d="要注意(90%%超)"', WARN),
                         ('J', '$J%d="適正"', OKF), ('P', '$P%d="要 追加生産"', ALERT),
-                        ('T', 'LEFT($T%d,1)="S"', ALERT), ('T', '$T%d="A:会期中欠品"', ALERT),
-                        ('T', '$T%d="B:大口"', WARN), ('U', '$U%d<>""', ALERT),
-                        ('V', 'LEFT($V%d,1)="△"', WARN), ('V', 'LEFT($V%d,1)="▲"', WARN)]:
+                        ('T', '$T%d<>"—"', ALERT),
+                        ('W', 'LEFT($W%d,1)="★"', ALERT), ('W', '$W%d="要着手(90日以内)"', WARN),
+                        ('W', '$W%d="余裕あり"', OKF),
+                        ('X', 'LEFT($X%d,1)="S"', ALERT), ('X', '$X%d="A:会期中欠品"', ALERT),
+                        ('X', '$X%d="B:大口"', WARN), ('Y', '$Y%d<>""', ALERT),
+                        ('Z', 'LEFT($Z%d,1)="△"', WARN), ('Z', 'LEFT($Z%d,1)="▲"', WARN)]:
     ws.conditional_formatting.add('%s%d:%s%d' % (rng, j0, rng, jtot - 1),
                                   FormulaRule(formula=[cond % j0], fill=fill))
 
@@ -1183,7 +1220,7 @@ for i, (jan, nm) in enumerate(T):
     ws.cell(rr, cc, "='④追加発注判定'!J%d" % (j0 + i))
     ws.cell(rr, cc + 1, "='④追加発注判定'!P%d" % (j0 + i))
     ws.cell(rr, cc + 2, "='④追加発注判定'!R%d" % (j0 + i)).number_format = INT
-    ws.cell(rr, cc + 3, "='④追加発注判定'!T%d" % (j0 + i))
+    ws.cell(rr, cc + 3, "='④追加発注判定'!X%d" % (j0 + i))
 ws.cell(qtot, 3, '合計（LEGS 42SKU）')
 sumcols = []
 cc = 5
@@ -1567,6 +1604,7 @@ IH += [('★残在庫想定\n%s' % STOCK_STAGE.replace('(SET)', ''), 13,
       ('過不足\n(供給−必要)', 13, JUDG),
       ('欠品\n(追加生産必要数)', 14, JUDG),
       ('推奨発注数\n(安全率込)', 12, JUDG),
+      ('欠品発生\n会場', 20, ALERT), ('最終発注期限', 13, ALERT), ('発注の緊急度', 16, ALERT),
       ('判定', 20, JUDG),
       ('運営欠品報告\n(7/28)', 14, ALERT),
       ('備考', 46, GREY)]
@@ -1596,9 +1634,19 @@ for i, (jan, nm) in enumerate(T):
     ws.cell(rr, 16, '=N%d-O%d' % (rr, rr)).number_format = '+#,##0;-#,##0;0'
     ws.cell(rr, 17, '=MAX(0,-P%d)' % rr).number_format = INT
     ws.cell(rr, 18, '=IF(Q%d>0,ROUNDUP(Q%d*(1+%s),0),0)' % (rr, rr, pr('safe'))).number_format = INT
-    ws.cell(rr, 19, '=IF(Q%d>0,"★欠品：追加生産が必要",IF(P%d>=O%d*2,"大幅余剰","在庫で充足"))' % (rr, rr, rr))
+    _fn8 = _venue_of(jan)
+    ws.cell(rr, 19, _fn8 if _fn8 else '—')
+    _dl8 = _dl_formula(jan)
+    ws.cell(rr, 20, _dl8 if _dl8 else '')
+    if _dl8.startswith('='):
+        ws.cell(rr, 20).number_format = 'yyyy/m/d'
+    ws.cell(rr, 21, '=IF(S%d="—","—",IF(T%d="再生産不可","×再生産不可",'
+            '_xlfn.IFS(T%d-%s<0,"★期限超過",T%d-%s<=30,"★至急(30日以内)",'
+            'T%d-%s<=90,"要着手(90日以内)",TRUE(),"余裕あり")))'
+            % (rr, rr, rr, pr('base'), rr, pr('base'), rr, pr('base')))
+    ws.cell(rr, 22, '=IF(Q%d>0,"★欠品：追加生産が必要",IF(P%d>=O%d*2,"大幅余剰","在庫で充足"))' % (rr, rr, rr))
     _sh = SHORTAGE.get(str(jan), '')
-    ws.cell(rr, 20, '欠品報告あり' if _sh else '')
+    ws.cell(rr, 23, '欠品報告あり' if _sh else '')
     _wh = iv['real'] - R('札幌', jan)['avail']
     nts = []
     if _sh:
@@ -1608,26 +1656,33 @@ for i, (jan, nm) in enumerate(T):
             nts.append('★「追納困難」との回答だが実在庫%s個あり。出荷可否を要再確認' % f'{_wh:,}')
     if iv['set_size'] > 1:
         nts.append('SET商品（1販売単位＝%d個）。台帳の発注数はバラ単位' % iv['set_size'])
-    ws.cell(rr, 21, ' ／ '.join(nts))
+    ws.cell(rr, 24, ' ／ '.join(nts))
 ws.cell(itot, 3, '合計（LEGS 42SKU）')
 for c in [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]:
     L = gcl(c)
     ws.cell(itot, c, '=SUM(%s%d:%s%d)' % (L, i0, L, itot - 1)).number_format = YEN if c == 9 else INT
-ws.cell(itot, 19, '=COUNTIF(S%d:S%d,"★欠品：追加生産が必要")&"品目が欠品"' % (i0, itot - 1))
-ws.cell(itot, 20, '=COUNTIF(T%d:T%d,"<>")&"品目"' % (i0, itot - 1))
-body(ws, i0, itot, 21)
+ws.cell(itot, 21, '=COUNTIF(U%d:U%d,"★期限超過")&"品目が期限超過"' % (i0, itot - 1))
+ws.cell(itot, 22, '=COUNTIF(V%d:V%d,"★欠品：追加生産が必要")&"品目が欠品"' % (i0, itot - 1))
+ws.cell(itot, 23, '=COUNTIF(W%d:W%d,"<>")&"品目"' % (i0, itot - 1))
+body(ws, i0, itot, 24)
 for rr in range(i0, itot):
-    for _c in (19, 21):
+    for _c in (19, 21, 22, 24):
         ws.cell(rr, _c).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
-totrow(ws, itot, 21)
-hdrfmt(ws, ihr, ihr, 21)
-ws.conditional_formatting.add('S%d:S%d' % (i0, itot - 1),
-                              FormulaRule(formula=['LEFT($S%d,1)="★"' % i0], fill=ALERT,
+totrow(ws, itot, 24)
+hdrfmt(ws, ihr, ihr, 24)
+ws.conditional_formatting.add('V%d:V%d' % (i0, itot - 1),
+                              FormulaRule(formula=['LEFT($V%d,1)="★"' % i0], fill=ALERT,
                                           font=Font(name=FONT, size=9, bold=True, color='9C0006')))
+ws.conditional_formatting.add('V%d:V%d' % (i0, itot - 1),
+                              FormulaRule(formula=['$V%d="在庫で充足"' % i0], fill=OKF))
+ws.conditional_formatting.add('W%d:W%d' % (i0, itot - 1),
+                              FormulaRule(formula=['$W%d<>""' % i0], fill=WARN))
 ws.conditional_formatting.add('S%d:S%d' % (i0, itot - 1),
-                              FormulaRule(formula=['$S%d="在庫で充足"' % i0], fill=OKF))
-ws.conditional_formatting.add('T%d:T%d' % (i0, itot - 1),
-                              FormulaRule(formula=['$T%d<>""' % i0], fill=WARN))
+                              FormulaRule(formula=['$S%d<>"—"' % i0], fill=ALERT))
+ws.conditional_formatting.add('U%d:U%d' % (i0, itot - 1),
+                              FormulaRule(formula=['LEFT($U%d,1)="★"' % i0], fill=ALERT))
+ws.conditional_formatting.add('U%d:U%d' % (i0, itot - 1),
+                              FormulaRule(formula=['$U%d="要着手(90日以内)"' % i0], fill=WARN))
 ws.conditional_formatting.add('Q%d:Q%d' % (i0, itot - 1),
                               FormulaRule(formula=['$Q%d>0' % i0], fill=ALERT))
 
