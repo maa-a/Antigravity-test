@@ -66,9 +66,12 @@ function processInvoiceForPca(base64Data, mimeType, customPrompt, modelName, sou
   return new PcaInvoiceWindow().process(base64Data, mimeType, customPrompt, modelName, sourceFileName);
 }
 
-/** 🧾 窓5：蓄積した全明細から最終CSVを組み立てる（複数ファイル→1CSV） */
-function buildPcaCsv(entries, mode) {
-  return new PcaInvoiceWindow().buildCsv(entries, mode);
+/**
+ * 🧾 窓5：蓄積した全明細から最終CSVを組み立てる（複数ファイル→1CSV）
+ * @param voucherStart 伝票番号の開始値。前回出力分の続きから採番したい場合に指定
+ */
+function buildPcaCsv(entries, mode, voucherStart) {
+  return new PcaInvoiceWindow().buildCsv(entries, mode, voucherStart);
 }
 
 /** ⚙ マスタ一式の取得（画面初期化用） */
@@ -1038,11 +1041,15 @@ ${prompt}
    * 蓄積した全明細から最終CSVを組み立てます（複数ファイル→1CSV）。
    * mode: 'internal'（社内財務管理表 取込用） / 'office'（会計事務所 PCA取込用）
    */
-  buildCsv(entries, mode) {
+  buildCsv(entries, mode, voucherStart) {
     const list = entries || [];
     const isOffice = (mode === 'office');
     const headers = isOffice ? PcaInvoiceWindow.OFFICE_HEADERS : PcaInvoiceWindow.INTERNAL_HEADERS;
-    const rows = isOffice ? this.buildOfficeRows(list) : this.buildInternalRows(list);
+    // 伝票番号の開始値。前回出力分の続きから採番するために使います
+    // （既に出力済みの伝票番号と重複すると、PCA側の取込で事故になるため）
+    let start = Number(voucherStart);
+    if (!isFinite(start) || start < 1) start = 1;
+    const rows = isOffice ? this.buildOfficeRows(list, start) : this.buildInternalRows(list, start);
     return {
       mode: isOffice ? 'office' : 'internal',
       headers: headers,
@@ -1060,10 +1067,11 @@ ${prompt}
    * そのまま社内財務管理表へ貼り付けられる想定です。
    * 伝票日付は見本にあわせ YYYYMMDD（数値形式）で出力します。
    */
-  buildInternalRows(entries) {
+  buildInternalRows(entries, voucherStart) {
+    const base = (voucherStart || 1);
     const rows = [];
     entries.forEach(function (e, idx) {
-      const voucherNo = idx + 1;
+      const voucherNo = base + idx;
       const ymd = e.date ? e.date.replace(/\//g, '') : '';
 
       // 本体（税抜）行
@@ -1094,14 +1102,15 @@ ${prompt}
    * 貸方は「未払金(420)」を既定の相手科目としています
    * （変更が必要な場合は下記 CREDIT_* の値を書き換えてください）。
    */
-  buildOfficeRows(entries) {
+  buildOfficeRows(entries, voucherStart) {
     const CREDIT_CODE = '420';
     const CREDIT_NAME = '未払金';
     const CREDIT_TAX = '対象外';
+    const base = (voucherStart || 1);
     const rows = [];
 
     entries.forEach(function (e, idx) {
-      const voucherNo = idx + 1;
+      const voucherNo = base + idx;
       const memo = [e.vendor, e.description, e.invoiceNo].filter(Boolean).join(' ');
 
       // 本体（税抜）行

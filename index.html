@@ -874,6 +874,38 @@
     .pca-state-done { color: var(--accent-green); }
     .pca-state-err  { color: #dc2626; }
 
+    .resume-bar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 14px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .resume-text { font-size: 0.86em; font-weight: 700; color: #92400e; }
+    .resume-actions { display: flex; gap: 8px; }
+
+    .carry-info {
+      display: none;
+      font-size: 0.8em;
+      color: #0f766e;
+      background: #f0fdfa;
+      border: 1px solid #99f6e4;
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      line-height: 1.6;
+    }
+
+    /* 前回出力から読み込んだ行は左端に帯を付けて区別する */
+    .row-carry td:first-child { box-shadow: inset 4px 0 0 #14b8a6; }
+
     .mode-toggle {
       display: flex;
       gap: 8px;
@@ -1182,6 +1214,15 @@
   </header>
 
   <div class="container">
+    <!-- 前回の作業が残っているときだけ表示される案内バー -->
+    <div id="resume-bar" class="resume-bar">
+      <span id="resume-text" class="resume-text"></span>
+      <span class="resume-actions">
+        <button id="resume-btn" class="preview-btn preview-btn-download">▶ 続きから再開</button>
+        <button id="resume-discard" class="preview-btn preview-btn-add">破棄する</button>
+      </span>
+    </div>
+
     <!-- 窓カードは JS の WINDOW_DEFS から自動生成します（窓の追加はそこに1件足すだけ） -->
     <div id="window-sections"></div>
 
@@ -1312,7 +1353,11 @@
       <div class="mode-toggle">
         <button id="pca-mode-internal" class="mode-btn active" onclick="PcaPreview.setMode('internal')">🏢 社内用（社内財務管理表 取込）</button>
         <button id="pca-mode-office" class="mode-btn" onclick="PcaPreview.setMode('office')">🏛 会計事務所用（PCA仕訳インポート）</button>
+        <button class="mode-btn" onclick="document.getElementById('input-prev-csv').click()">📥 前回出力したCSVを読み込んで続きに追加</button>
+        <button id="pca-clear-carry" class="mode-btn" style="display:none;" onclick="PcaPreview.clearCarry()">✖ 読み込みを解除</button>
       </div>
+      <input type="file" id="input-prev-csv" class="hidden-input" accept=".csv">
+      <div id="carry-info" class="carry-info"></div>
 
       <div class="preview-notice-box">
         <div class="notice-primary">
@@ -1464,6 +1509,36 @@
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+      },
+
+      /**
+       * CSVファイルのバイト列を文字列へ復号する。
+       * ------------------------------------------------------------
+       * Shift-JIS / UTF-8（BOM有無）を自動判別します。
+       * encoding-japanese（CDN）が読み込めなかった場合でも、
+       * ブラウザ標準の TextDecoder で復号できるようにしてあります
+       * （CDNが一時的に落ちても、ファイル読み込みが止まらないように）。
+       */
+      decodeBytes(buffer) {
+        const bytes = new Uint8Array(buffer);
+
+        // UTF-8 BOM 付きは確定
+        if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+          return new TextDecoder('utf-8').decode(bytes.subarray(3));
+        }
+
+        if (typeof Encoding !== 'undefined') {
+          return Encoding.codeToString(Encoding.convert(bytes, { to: 'UNICODE', from: 'AUTO' }));
+        }
+
+        // フォールバック：UTF-8で試し、化け（U+FFFD）が出たらShift-JISで読み直す
+        const utf8 = new TextDecoder('utf-8').decode(bytes);
+        if (utf8.indexOf('\uFFFD') === -1) return utf8;
+        try {
+          return new TextDecoder('shift_jis').decode(bytes);
+        } catch (e) {
+          return utf8;
+        }
       },
 
       /**
@@ -2934,6 +3009,99 @@
     };
 
     // ==================================================================
+    // SessionStore：窓5の作業内容をブラウザに自動保存する。
+    // ------------------------------------------------------------------
+    // 請求書は後から届くことが多いため、画面を閉じても続きから足せるように
+    // 解析済み明細をブラウザ内（localStorage）に保存します。
+    // ・保存先は利用者のブラウザのみ。サーバーやDriveには送信しません
+    // ・保存に失敗しても（容量超過など）アプリの動作は止めません
+    // ==================================================================
+    const SessionStore = {
+      KEY: 'pca_session_v1',
+      LIMIT_BYTES: 4 * 1024 * 1024,   // localStorage の上限（約5MB）に対する安全域
+
+      save() {
+        try {
+          const payload = JSON.stringify({
+            savedAt: new Date().toISOString(),
+            mode: PcaPreview.mode,
+            entries: PcaPreview.entries,
+            carryRows: PcaPreview.carryRows,
+            carryMode: PcaPreview.carryMode,
+            carryName: PcaPreview.carryName
+          });
+          if (payload.length > this.LIMIT_BYTES) {
+            LogPanel.add('作業内容が大きいため自動保存を見送りました。先にCSVで保存してください。', 'error');
+            return;
+          }
+          localStorage.setItem(this.KEY, payload);
+        } catch (e) {
+          // 容量超過やプライベートモードでも本体は動かし続ける
+          LogPanel.add('作業内容の自動保存に失敗しました（ブラウザの設定・容量をご確認ください）', 'error');
+        }
+      },
+
+      /** 保存済みの作業内容を読み出す。無ければ null。 */
+      peek() {
+        try {
+          const raw = localStorage.getItem(this.KEY);
+          if (!raw) return null;
+          const data = JSON.parse(raw);
+          if (!data || (!(data.entries || []).length && !(data.carryRows || []).length)) return null;
+          return data;
+        } catch (e) {
+          return null;
+        }
+      },
+
+      restore(data) {
+        PcaPreview.entries = data.entries || [];
+        PcaPreview.carryRows = data.carryRows || [];
+        PcaPreview.carryMode = data.carryMode || '';
+        PcaPreview.carryName = data.carryName || '';
+        PcaPreview.mode = data.mode || 'internal';
+        document.getElementById('pca-mode-internal').classList.toggle('active', PcaPreview.mode === 'internal');
+        document.getElementById('pca-mode-office').classList.toggle('active', PcaPreview.mode === 'office');
+        PcaPreview.rebuild();
+      },
+
+      clear() {
+        try { localStorage.removeItem(this.KEY); } catch (e) { /* 失敗しても無視 */ }
+      },
+
+      /** 起動時に「前回の続き」があれば案内を出す。 */
+      init() {
+        const data = this.peek();
+        const bar = document.getElementById('resume-bar');
+        if (!data) { bar.style.display = 'none'; return; }
+
+        const when = new Date(data.savedAt);
+        const stamp = isNaN(when.getTime()) ? '' :
+          (when.getMonth() + 1) + '/' + when.getDate() + ' ' +
+          ('0' + when.getHours()).slice(-2) + ':' + ('0' + when.getMinutes()).slice(-2);
+        const count = (data.entries || []).length;
+        const carry = (data.carryRows || []).length;
+
+        document.getElementById('resume-text').textContent =
+          '前回の作業が残っています（' + stamp + ' 時点 ／ 明細 ' + count + ' 件'
+          + (carry ? ' ＋ 読込済み ' + carry + ' 行' : '') + '）。続きから追加できます。';
+        bar.style.display = 'flex';
+
+        document.getElementById('resume-btn').onclick = () => {
+          bar.style.display = 'none';
+          this.restore(data);
+          LogPanel.add('前回の作業を復元しました（明細 ' + count + ' 件）', 'success');
+        };
+        document.getElementById('resume-discard').onclick = () => {
+          if (!confirm('前回の作業内容を破棄します。よろしいですか？')) return;
+          this.clear();
+          bar.style.display = 'none';
+          LogPanel.add('前回の作業内容を破棄しました', 'info');
+        };
+      }
+    };
+
+    // ==================================================================
     // PcaCellEditors：窓5のプレビュー表で「どの列をプルダウンにするか」の定義。
     // ------------------------------------------------------------------
     // 会計知識がない担当者でも、マスタに登録された正しい科目から
@@ -3159,6 +3327,13 @@
       table: { headers: [], rows: [] },
       edited: false,        // プレビュー表を手修正したか（再判定前の確認に使用）
 
+      // 前回出力したCSVを読み込んだときの行。新しい明細はこの「下」に積まれます。
+      // 表の行配列は carryRows の要素をそのまま参照するため、
+      // 画面で編集すればこちらにも反映されます。
+      carryRows: [],
+      carryMode: '',        // 読み込んだCSVがどちらの形式だったか
+      carryName: '',        // 読み込んだファイル名（画面表示用）
+
       setMode(mode) {
         if (mode === this.mode) return;
         // 表を組み直すため、手修正した内容は失われます。先に確認します。
@@ -3177,15 +3352,83 @@
 
       clear() {
         this.entries = [];
+        this.carryRows = [];
+        this.carryMode = '';
+        this.carryName = '';
         this.table = { headers: [], rows: [] };
         this.edited = false;
         UnresolvedTray.load([]);
+        SessionStore.clear();
         document.getElementById('pca-section').style.display = 'none';
+      },
+
+      /**
+       * 前回出力したCSVを読み込み、その下に今回の明細を積む「追記モード」。
+       * 伝票番号は読み込んだCSVの最大値の次から続けて振ります。
+       */
+      loadPreviousCsv(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+          try {
+            const table = Utils.parseCsv(Utils.decodeBytes(e.target.result));
+            if (table.length < 2) throw new Error('明細行が見つかりませんでした');
+
+            const headers = table[0].map(h => String(h).trim());
+            // どちらの形式で出力したCSVかを、ヘッダーから判定する
+            const isOffice = headers.indexOf('貸方科目コード') !== -1;
+            const mode = isOffice ? 'office' : 'internal';
+            if (headers.indexOf('伝票日付') === -1 || headers.indexOf('借方科目コード') === -1) {
+              throw new Error('窓5で出力したCSVではないようです（ヘッダーが一致しません）');
+            }
+
+            this.carryRows = table.slice(1).map(r =>
+              headers.map((_, i) => (r[i] === undefined ? '' : r[i])));
+            this.carryMode = mode;
+            this.carryName = file.name;
+            this.mode = mode;
+            document.getElementById('pca-mode-internal').classList.toggle('active', mode === 'internal');
+            document.getElementById('pca-mode-office').classList.toggle('active', mode === 'office');
+
+            LogPanel.add('窓5(PCA仕訳) 前回出力を読み込みました: [' + file.name + '] ' +
+              this.carryRows.length + '行 / 形式: ' +
+              (isOffice ? '会計事務所用' : '社内用') +
+              ' → 次の伝票番号は ' + this.nextVoucherNo() + ' から', 'success');
+
+            this.rebuild();
+          } catch (err) {
+            LogPanel.add('窓5(PCA仕訳) 前回出力の読み込みに失敗: ' +
+              (err && err.message ? err.message : err), 'error');
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      },
+
+      /** 読み込んだ前回出力の伝票番号の続き（無ければ1）。 */
+      nextVoucherNo() {
+        if (!this.carryRows.length) return 1;
+        let max = 0;
+        this.carryRows.forEach(r => {
+          const n = parseInt(String(r[1] || '').replace(/[^0-9]/g, ''), 10);
+          if (isFinite(n) && n > max) max = n;
+        });
+        return max + 1;
+      },
+
+      /** 前回出力の読み込みだけを解除する（今回の解析結果は残す）。 */
+      clearCarry() {
+        if (!this.carryRows.length) return;
+        const name = this.carryName;
+        this.carryRows = [];
+        this.carryMode = '';
+        this.carryName = '';
+        LogPanel.add('窓5(PCA仕訳) 前回出力の読み込みを解除しました: [' + name + ']', 'info');
+        this.rebuild();
       },
 
       /** サーバーにCSV組み立てを依頼し、返ってきた表を描画する。 */
       rebuild() {
-        if (!this.entries.length) {
+        if (!this.entries.length && !this.carryRows.length) {
           document.getElementById('pca-section').style.display = 'none';
           return;
         }
@@ -3193,11 +3436,17 @@
         google.script.run
           .withSuccessHandler(res => {
             hideLockScreen();
-            this.table = { headers: res.headers, rows: res.rows };
+            // 前回出力分（carryRows）の「下」に、今回の明細を積む。
+            // concat は要素の参照をそのまま持つため、画面での編集は
+            // carryRows 側にも反映されます。
+            const carry = (this.carryMode === this.mode) ? this.carryRows : [];
+            this.table = { headers: res.headers, rows: carry.concat(res.rows) };
+            this.carryCount = carry.length;
             this.edited = false;
             // 科目が未確定の明細を「あとで設定」トレイに流し込む
             UnresolvedTray.load(res.unresolved);
             this.render();
+            SessionStore.save();
             const section = document.getElementById('pca-section');
             section.style.display = 'block';
             section.scrollIntoView({ behavior: 'smooth' });
@@ -3206,7 +3455,7 @@
             hideLockScreen();
             LogPanel.add('窓5(PCA仕訳) 組み立てエラー: ' + err, 'error');
           })
-          .buildPcaCsv(this.entries, this.mode);
+          .buildPcaCsv(this.entries, this.mode, this.nextVoucherNo());
       },
 
       render() {
@@ -3218,12 +3467,29 @@
         const memos = memoIdx === -1 ? 0 : this.table.rows.reduce((acc, row) =>
           acc + (String(row[memoIdx] || '') !== '' ? 1 : 0), 0);
 
+        const carryCount = this.carryCount || 0;
         const label = (this.mode === 'office') ? '会計事務所用（PCA仕訳インポート）' : '社内用（社内財務管理表 取込）';
         const badge = document.createElement('span');
         badge.className = 'preview-active-badge';
         badge.textContent = label + ' ／ ' + this.entries.length + ' 明細 → ' + this.table.rows.length + ' 行'
+          + (carryCount ? '（うち読込済み ' + carryCount + ' 行）' : '')
           + (blanks ? ' ／ 科目未確定 ' + blanks + ' 行（空欄）' : '')
           + (memos ? ' ／ 要確認 ' + memos + ' 行' : '');
+
+        // 追記モードの案内と、解除ボタンの出し分け
+        const info = document.getElementById('carry-info');
+        const clearBtn = document.getElementById('pca-clear-carry');
+        if (carryCount) {
+          info.style.display = 'block';
+          info.innerHTML = '📥 <strong>' + this._escapeHtml(this.carryName) + '</strong> の ' + carryCount +
+            ' 行を読み込み済みです。<strong>今回の明細はその下に追加</strong>され、' +
+            '伝票番号は <strong>' + this.nextVoucherNo() + '</strong> から続けて振られます。' +
+            '出力すると、読み込んだ分と今回分をまとめた1つのファイルになります。';
+          clearBtn.style.display = 'inline-block';
+        } else {
+          info.style.display = 'none';
+          clearBtn.style.display = 'none';
+        }
         const titleEl = document.getElementById('pca-title-text');
         titleEl.textContent = '🧾 PCA会計 仕訳プレビュー ';
         titleEl.appendChild(badge);
@@ -3233,8 +3499,10 @@
           tbody: 'pca-tbody',
           headers: this.table.headers,
           rows: this.table.rows,
-          // 要確認メモが入っている行は色を付けて見つけやすくする
-          decorateRow: (tr, row) => {
+          // 要確認メモが入っている行は色を付けて見つけやすくする。
+          // 前回出力から読み込んだ行は左端に帯を付けて区別します。
+          decorateRow: (tr, row, rIdx) => {
+            if (rIdx < carryCount) tr.classList.add('row-carry');
             if (memoIdx !== -1 && String(row[memoIdx] || '') !== '') {
               tr.style.background = '#fff7ed';
             }
@@ -3261,7 +3529,14 @@
       addRowAtEnd() {
         if (!this.table.headers.length) return;
         this.table.rows.push(Array(this.table.headers.length).fill(''));
+        this.edited = true;
         this.render();
+      },
+
+      _escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text === undefined || text === null ? '' : String(text);
+        return div.innerHTML;
       },
 
       _baseName() {
@@ -3682,12 +3957,8 @@
         const reader = new FileReader();
         reader.onload = e => {
           try {
-            const codes = new Uint8Array(e.target.result);
-            const unicodeString = Encoding.convert(codes, { to: 'UNICODE', from: 'AUTO' });
-            const content = Encoding.codeToString(unicodeString);
-
             // ⚠ 文字化け対策：クォート対応パーサでCSVを読む
-            const table = Utils.parseCsv(content);
+            const table = Utils.parseCsv(Utils.decodeBytes(e.target.result));
             const parsedData = [];
             let total = 0, lastDate = '';
 
@@ -3781,6 +4052,15 @@
       });
 
       MasterPanel.reload();
+
+      // 前回出力CSVの読み込み（追記モード）
+      document.getElementById('input-prev-csv').addEventListener('change', e => {
+        PcaPreview.loadPreviousCsv(e.target.files[0]);
+        e.target.value = '';
+      });
+
+      // 前回の作業が残っていれば「続きから再開」を案内する
+      SessionStore.init();
 
       google.script.run.withSuccessHandler(function(key) {
         if (key) {
