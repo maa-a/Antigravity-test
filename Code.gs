@@ -826,15 +826,22 @@ ${prompt}
    */
   _normalize(rec, resolver, fileName) {
     const warnings = [];
+    let appliedRule = '';
 
-    // --- 科目の決定：キーワードルール > AI判断。どちらも駄目なら空欄。 ---
+    // --- 科目の決定：社内ルール > AI判断。どちらも駄目なら空欄。 ---
     // 科目は【大分類＋小分類のペア】で確定させます。
-    const keywordHit = resolver.applyKeywordRule(
-      [rec.description, rec.vendor].filter(Boolean).join(' ')
-    );
+    // 取引先と摘要を分けて渡すことで、「この取引先はこの科目」という
+    // 摘要に情報が無い請求書にも対応できます。
+    const keywordHit = resolver.applyKeywordRule(rec.description, rec.vendor);
     const minorName = keywordHit ? keywordHit.minor : CsvUtil.sanitize(rec.minor_category);
     const majorName = keywordHit ? keywordHit.major : CsvUtil.sanitize(rec.major_category);
     const internal = resolver.resolveInternal(minorName, majorName);
+
+    if (keywordHit && internal) {
+      const hitRule = keywordHit.rule || {};
+      const label = [hitRule.vendorKeyword, hitRule.keyword].filter(Boolean).join(' + ');
+      if (label) appliedRule = '社内ルール「' + label + '」を適用';
+    }
 
     if (!internal && minorName && resolver.isAmbiguousMinor(minorName)) {
       // 例：「版権元RY」は飲食・物販・予約の3つに存在。大分類が分からないと確定できない。
@@ -910,6 +917,7 @@ ${prompt}
       taxAmount:   tax === null ? '' : tax,
       totalAmount: total === null ? '' : total,
       sourceFile:  fileName,
+      appliedRule: appliedRule,
       warnings:    warnings.join(' / '),
       // マスタを更新したあとに再判定できるよう、AIの生出力を保持しておきます。
       // これにより「あとで科目を設定 → 再判定」がAI再解析なしで完了します。

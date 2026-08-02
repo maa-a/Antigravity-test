@@ -260,39 +260,54 @@ var MasterSeed = {
   ],
 
   /**
-   * 摘要キーワード → 科目（大分類＋小分類）の自動仕分けルール
+   * 自動仕分けルール（社内ルール）
    * ------------------------------------------------------------------
    * AIの判断より優先して適用されます。ここに無いものはAI判断、
    * AIも判断できない場合は「空欄」で出力します。
    *
+   * vendorKeyword : 取引先名に含まれる文字（空なら取引先は問わない）
+   * keyword       : 摘要・品名に含まれる文字（空なら摘要は問わない）
+   * major / minor : 割り当てる大分類・小分類（ペアで指定）
+   * note          : なぜこのルールにしたかのメモ（任意・引き継ぎ用）
+   *
+   * ＜両方を指定した場合＞
+   *   取引先と摘要の【両方に一致】したときだけ適用されます（安全側）。
+   *   片方だけ指定すれば、その条件だけで広く適用されます。
+   *
+   * ＜適用の優先順位＞
+   *   1. 取引先＋摘要の両方を指定したルール（もっとも具体的）
+   *   2. 取引先だけのルール
+   *   3. 摘要だけのルール
+   *   同じ具体度なら、条件の文字数が長い（＝より限定的な）ルールが優先されます。
+   *
    * ⚠ 小分類は大分類とセットで指定してください（「版権元RY」のように
    *   複数の大分類に存在する小分類があるためです）。
    *
-   * 初期値は、いただいた見本請求書と一般的な取引から機械的に置いた
-   * 【たたき台】です。実際の運用ルールに合わせて画面から編集してください。
+   * 初期値は一般的な取引から機械的に置いた【たたき台】です。
+   * 実際の運用ルールに合わせて画面から編集してください。
    */
   KEYWORD_RULES: [
-    { keyword: 'Amazon',        major: '消耗品費',   minor: '消耗品費' },
-    { keyword: 'アマゾン',       major: '消耗品費',   minor: '消耗品費' },
-    { keyword: 'JR',            major: '旅費交通費', minor: '旅費交通費' },
-    { keyword: 'タクシー',       major: '旅費交通費', minor: '旅費交通費' },
-    { keyword: 'ETC',           major: '旅費交通費', minor: '旅費交通費' },
-    { keyword: '新幹線',         major: '旅費交通費', minor: '旅費交通費' },
-    { keyword: 'NTT',           major: '通信費',     minor: '通信費' },
-    { keyword: 'ソフトバンク',   major: '通信費',     minor: '通信費' },
-    { keyword: 'ドコモ',         major: '通信費',     minor: '通信費' },
-    { keyword: 'KDDI',          major: '通信費',     minor: '通信費' },
-    { keyword: '電力',           major: '水道光熱費', minor: '水道光熱費' },
-    { keyword: '東京ガス',       major: '水道光熱費', minor: '水道光熱費' },
-    { keyword: '水道局',         major: '水道光熱費', minor: '水道光熱費' },
-    { keyword: 'AWS',           major: '共通',       minor: 'AWS使用料' },
-    { keyword: 'Amazon Web Services', major: '共通', minor: 'AWS使用料' },
-    { keyword: '画稿費',         major: '共通',       minor: 'デザイン費' },
-    { keyword: 'イラスト制作費', major: '共通',       minor: 'デザイン費' },
-    { keyword: 'デザイン費',     major: '共通',       minor: 'デザイン費' },
-    { keyword: '版権使用料',     major: '共通',       minor: '版権使用料' },
-    { keyword: 'ノベルティ',     major: '共通',       minor: 'ノベルティ原価' },
-    { keyword: '施工',           major: '共通',       minor: '施工装飾費' },
-    { keyword: '装飾',           major: '共通',       minor: '施工装飾費' }
+    { vendorKeyword: '', keyword: 'Amazon',        major: '消耗品費',   minor: '消耗品費',   note: '' },
+    { vendorKeyword: '', keyword: 'アマゾン',       major: '消耗品費',   minor: '消耗品費',   note: '' },
+    { vendorKeyword: '', keyword: 'JR',            major: '旅費交通費', minor: '旅費交通費', note: '' },
+    { vendorKeyword: '', keyword: 'タクシー',       major: '旅費交通費', minor: '旅費交通費', note: '' },
+    { vendorKeyword: '', keyword: 'ETC',           major: '旅費交通費', minor: '旅費交通費', note: '' },
+    { vendorKeyword: '', keyword: '新幹線',         major: '旅費交通費', minor: '旅費交通費', note: '' },
+    { vendorKeyword: '', keyword: 'NTT',           major: '通信費',     minor: '通信費',     note: '' },
+    { vendorKeyword: '', keyword: 'ソフトバンク',   major: '通信費',     minor: '通信費',     note: '' },
+    { vendorKeyword: '', keyword: 'ドコモ',         major: '通信費',     minor: '通信費',     note: '' },
+    { vendorKeyword: '', keyword: 'KDDI',          major: '通信費',     minor: '通信費',     note: '' },
+    { vendorKeyword: '', keyword: '電力',           major: '水道光熱費', minor: '水道光熱費', note: '' },
+    { vendorKeyword: '', keyword: '東京ガス',       major: '水道光熱費', minor: '水道光熱費', note: '' },
+    { vendorKeyword: '', keyword: '水道局',         major: '水道光熱費', minor: '水道光熱費', note: '' },
+    { vendorKeyword: '', keyword: 'AWS',           major: '共通',       minor: 'AWS使用料',  note: '' },
+    { vendorKeyword: '', keyword: 'Amazon Web Services', major: '共通', minor: 'AWS使用料',  note: '' },
+    { vendorKeyword: '', keyword: '画稿費',         major: '共通',       minor: 'デザイン費', note: '' },
+    { vendorKeyword: '', keyword: 'イラスト制作費', major: '共通',       minor: 'デザイン費', note: '' },
+    { vendorKeyword: '', keyword: 'デザイン費',     major: '共通',       minor: 'デザイン費', note: '' },
+    { vendorKeyword: '', keyword: '版権使用料',     major: '共通',       minor: '版権使用料', note: '' },
+    { vendorKeyword: '', keyword: 'ノベルティ',     major: '共通',       minor: 'ノベルティ原価', note: '' },
+    { vendorKeyword: '', keyword: '施工',           major: '共通',       minor: '施工装飾費', note: '' },
+    { vendorKeyword: '', keyword: '装飾',           major: '共通',       minor: '施工装飾費', note: '' }
   ]
 };

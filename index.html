@@ -1220,9 +1220,16 @@
           <button class="preview-btn preview-btn-sheet" onclick="UnresolvedTray.reclassify()">🔄 マスタを反映して再判定</button>
         </div>
         <div class="unresolved-note">
-          科目を決めて「ルールとして保存」を押すと、<strong>次回から同じ取引先・摘要は自動で仕分けされます</strong>。
+          科目を決めて「ルールとして保存」を押すと、<strong>次回から同じ請求書は自動で仕分けされます</strong>。
           社内ルールが固まっていない今は空欄のまま出力し、決まったものから1件ずつ足していく運用ができます。<br>
-          <span style="color:#475569;">※ 保存後に「🔄 マスタを反映して再判定」を押すと、いま読み込み済みの明細にもすぐ反映されます（AIの再解析は行わないため無料・一瞬です）。</span>
+          <strong>「ルール：取引先」「ルール：摘要」は、不要なほうを空にしてから保存してください。</strong><br>
+          <span style="color:#475569;">
+            ・<strong>摘要だけ</strong>残す … 取引先を問わず適用（例：摘要「画稿費」→ デザイン費）<br>
+            ・<strong>取引先だけ</strong>残す … その取引先の請求書はすべて同じ科目に。
+              <strong>「前受金として」のように摘要に内容が書かれていない請求書</strong>はこちらが有効です<br>
+            ・<strong>両方</strong>残す … 両方に一致したときだけ適用（もっとも安全。まずはこの形を推奨）<br>
+            ※ 保存後に「🔄 マスタを反映して再判定」を押すと、いま読み込み済みの明細にもすぐ反映されます（AIの再解析は行わないため無料・一瞬です）。
+          </span>
         </div>
         <div class="table-container" style="max-height: 320px;">
           <table class="preview-table" id="unresolved-table">
@@ -1620,9 +1627,11 @@
           { key: 'major', label: '大分類（任意）', type: 'text', width: '130px' }
         ],
         keywordRules: [
-          { key: 'keyword', label: 'キーワード（取引先名・摘要に含まれる文字）', type: 'text', width: '260px' },
-          { key: 'major',   label: '→ 大分類', type: 'majorSelect' },
-          { key: 'minor',   label: '→ 小分類', type: 'minorSelect' }
+          { key: 'vendorKeyword', label: '取引先キーワード（任意）', type: 'text', width: '190px' },
+          { key: 'keyword',       label: '摘要キーワード（任意）', type: 'text', width: '190px' },
+          { key: 'major',         label: '→ 大分類', type: 'majorSelect' },
+          { key: 'minor',         label: '→ 小分類', type: 'minorSelect' },
+          { key: 'note',          label: 'メモ（任意）', type: 'text', width: '200px' }
         ],
         departments: [
           { key: 'code', label: '部門コード', type: 'text', width: '110px' },
@@ -1643,10 +1652,19 @@
           '<span style="color:#475569;">・PCA側で新しい科目を作った場合は、ここに「➕ 行を追加」で足してください。<br>' +
           '・勘定科目設定Excelを使う場合は、<strong>グレーアウトされた行を除いて</strong>貼り付けてください（登録していない科目は絶対に出力されません）。</span>',
         keywordRules:
-          '<strong>社内の仕分けルール</strong>です。請求書の取引先名や摘要に「キーワード」が含まれていたら、指定した科目に自動で仕分けます。<br>' +
-          '<strong>AIの判断よりこのルールが優先されます</strong>ので、社内ルールが決まったものから登録していってください。<br>' +
-          '<span style="color:#475569;">例：キーワード「画稿費」→ 大分類「共通」／小分類「デザイン費」<br>' +
-          '窓5の「科目が未確定の明細」からもワンクリックで登録できます。</span>',
+          '<strong>社内の仕分けルール</strong>です。<strong>AIの判断よりこのルールが優先されます</strong>ので、社内ルールが決まったものから登録していってください。<br>' +
+          '<strong>「取引先キーワード」と「摘要キーワード」の2つ</strong>があり、使い分けられます。<br>' +
+          '<span style="color:#475569;">' +
+          '・<strong>摘要だけ</strong>入力 … 取引先を問わず、摘要にその語が含まれれば適用<br>' +
+          '　例：摘要「画稿費」→ 共通／デザイン費<br>' +
+          '・<strong>取引先だけ</strong>入力 … その取引先の請求書はすべて同じ科目に。<strong>摘要に内容が書かれていない請求書</strong>（「前受金として」など）はこちら<br>' +
+          '　例：取引先「北日本カコー」→ 減価償却費／減価償却費<br>' +
+          '・<strong>両方</strong>入力 … 両方に一致したときだけ適用（もっとも安全）<br>' +
+          '　例：取引先「北日本カコー」＋摘要「前受金」→ 特定の科目だけに限定<br>' +
+          '</span>' +
+          '<span style="color:#b45309;">⚠ 適用は<strong>具体的なルールが優先</strong>されます（両方指定 → 取引先のみ → 摘要のみ の順）。' +
+          'そのため一般ルールを先に作っても、あとから個別ルールを足せばそちらが勝ちます。</span><br>' +
+          '<span style="color:#475569;">窓5の「科目が未確定の明細」からもワンクリックで登録できます。</span>',
         departments:
           '<strong>部門マスタ</strong>です。ここに無い部門名をAIが返しても採用されず、部門欄は空欄になります。'
       },
@@ -1975,17 +1993,20 @@
 
       /** 未確定の明細一覧（サーバーが集計したもの）を受け取って描画する。 */
       load(unresolved) {
-        this.items = (unresolved || []).map(x => Object.assign({
+        this.items = (unresolved || []).map(x => ({
+          vendor: x.vendor || '',
+          description: x.description || '',
+          reason: x.reason || '',
+          count: x.count || 0,
+          amount: x.amount || 0,
+          files: x.files || [],
+          // ルールの初期値：取引先と摘要の両方を入れておく（＝もっとも安全な形）。
+          // 広く適用したい場合は、片方を空にしてから保存してもらいます。
+          ruleVendor: x.vendor || '',
+          ruleKeyword: x.suggestedKeyword || '',
           selectedMajor: x.currentMajor || '',
-          selectedMinor: x.currentMinor || '',
-          keyword: x.suggestedKeyword || ''
-        }, x));
-        // Object.assign の順序で上書きされないよう、選択状態を入れ直す
-        this.items.forEach((item, i) => {
-          item.selectedMajor = (unresolved[i].currentMajor) || '';
-          item.selectedMinor = (unresolved[i].currentMinor) || '';
-          item.keyword = unresolved[i].suggestedKeyword || '';
-        });
+          selectedMinor: x.currentMinor || ''
+        }));
         this.render();
       },
 
@@ -2003,7 +2024,8 @@
         tbody.innerHTML = '';
 
         const headRow = document.createElement('tr');
-        ['件数', '取引先', '摘要', '未確定の理由', 'ルールにするキーワード', '→ 大分類', '→ 小分類', '登録']
+        ['件数', '取引先', '摘要', '未確定の理由',
+         'ルール：取引先', 'ルール：摘要', '→ 大分類', '→ 小分類', '登録']
           .forEach(label => {
             const th = document.createElement('th');
             th.textContent = label;
@@ -2027,15 +2049,21 @@
           addText(item.description || '（記載なし）');
           addText(item.reason || '', { small: true, color: '#b45309' });
 
-          // キーワード入力
-          const tdKw = document.createElement('td');
-          const kw = document.createElement('input');
-          kw.type = 'text';
-          kw.className = 'master-cell-input';
-          kw.value = item.keyword;
-          kw.addEventListener('input', () => { item.keyword = kw.value; });
-          tdKw.appendChild(kw);
-          tr.appendChild(tdKw);
+          // ルール条件（取引先／摘要）。どちらか一方を空にすれば広く適用されます。
+          const addRuleInput = (field, placeholder) => {
+            const td = document.createElement('td');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'master-cell-input';
+            input.value = item[field];
+            input.placeholder = placeholder;
+            input.title = '空にすると、この条件を問わずに適用されます';
+            input.addEventListener('input', () => { item[field] = input.value; });
+            td.appendChild(input);
+            tr.appendChild(td);
+          };
+          addRuleInput('ruleVendor', '（問わない）');
+          addRuleInput('ruleKeyword', '（問わない）');
 
           // 大分類・小分類のプルダウン
           const tdMajor = document.createElement('td');
@@ -2084,8 +2112,11 @@
 
       saveRule(idx) {
         const item = this.items[idx];
-        if (!item.keyword || !item.keyword.trim()) {
-          LogPanel.add('ルール登録: キーワードを入力してください', 'error');
+        const ruleVendor = (item.ruleVendor || '').trim();
+        const ruleKeyword = (item.ruleKeyword || '').trim();
+
+        if (!ruleVendor && !ruleKeyword) {
+          LogPanel.add('ルール登録: 「取引先」か「摘要」のどちらかは入力してください', 'error');
           return;
         }
         if (!item.selectedMajor || !item.selectedMinor) {
@@ -2093,12 +2124,13 @@
           return;
         }
 
+        const label = [ruleVendor, ruleKeyword].filter(Boolean).join(' + ');
         showLockScreen('仕分けルールを保存しています...');
         google.script.run
           .withSuccessHandler(res => {
             hideLockScreen();
             MasterPanel.masters = res.masters;
-            LogPanel.add('仕分けルールを保存しました: 「' + item.keyword + '」 → '
+            LogPanel.add('仕分けルールを保存しました: 「' + label + '」 → '
               + item.selectedMajor + ' / ' + item.selectedMinor
               + '（登録済みルール ' + res.count + ' 件）', 'success');
             this.reclassify();
@@ -2108,9 +2140,11 @@
             LogPanel.add('ルール登録エラー: ' + err, 'error');
           })
           .addKeywordRule({
-            keyword: item.keyword.trim(),
+            vendorKeyword: ruleVendor,
+            keyword: ruleKeyword,
             major: item.selectedMajor,
-            minor: item.selectedMinor
+            minor: item.selectedMinor,
+            note: ''
           });
       },
 

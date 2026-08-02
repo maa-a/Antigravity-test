@@ -200,7 +200,8 @@ class MasterStore {
       return String(item.code === undefined ? '' : item.code).trim();
     }
     if (name === 'keywordRules') {
-      return AccountResolver.normalize(item.keyword);
+      // 取引先＋摘要の組み合わせで1つのルールとして扱う
+      return AccountResolver.normalize(item.vendorKeyword) + '||' + AccountResolver.normalize(item.keyword);
     }
     return JSON.stringify(item);
   }
@@ -257,12 +258,19 @@ class MasterStore {
         if (!item.name) { errors.push(lineNo + '行目: 部門名が空です'); return; }
 
       } else if (name === 'keywordRules') {
+        item.vendorKeyword = CsvUtilLite.trim(raw.vendorKeyword);
         item.keyword = CsvUtilLite.trim(raw.keyword);
         item.major = CsvUtilLite.trim(raw.major);
         item.minor = CsvUtilLite.trim(raw.minor);
-        if (!item.keyword) return;
+        item.note = CsvUtilLite.trim(raw.note);
+        if (!item.vendorKeyword && !item.keyword && !item.major && !item.minor) return;
+        if (!item.vendorKeyword && !item.keyword) {
+          errors.push(lineNo + '行目: 取引先キーワードか摘要キーワードのどちらかは入力してください');
+          return;
+        }
+        const label = [item.vendorKeyword, item.keyword].filter(Boolean).join(' + ');
         if (!item.major || !item.minor) {
-          errors.push(lineNo + '行目: キーワード「' + item.keyword + '」の大分類・小分類を選んでください');
+          errors.push(lineNo + '行目: ルール「' + label + '」の大分類・小分類を選んでください');
           return;
         }
 
@@ -289,7 +297,8 @@ class MasterStore {
       list.forEach(function (rule) {
         const k = AccountResolver.normalize(rule.major) + '||' + AccountResolver.normalize(rule.minor);
         if (!pairs[k]) {
-          errors.push('キーワード「' + rule.keyword + '」の科目「' + rule.major + ' / ' + rule.minor + '」が社内管理科目にありません');
+          const label = [rule.vendorKeyword, rule.keyword].filter(Boolean).join(' + ');
+          errors.push('ルール「' + label + '」の科目「' + rule.major + ' / ' + rule.minor + '」が社内管理科目にありません');
         }
       });
     }
@@ -326,11 +335,15 @@ class MasterStore {
   static addKeywordRule(rule) {
     const list = (MasterStore.load('keywordRules') || []).slice();
     const incoming = {
+      vendorKeyword: CsvUtilLite.trim(rule && rule.vendorKeyword),
       keyword: CsvUtilLite.trim(rule && rule.keyword),
       major: CsvUtilLite.trim(rule && rule.major),
-      minor: CsvUtilLite.trim(rule && rule.minor)
+      minor: CsvUtilLite.trim(rule && rule.minor),
+      note: CsvUtilLite.trim(rule && rule.note)
     };
-    if (!incoming.keyword) throw new Error('キーワードを入力してください。');
+    if (!incoming.vendorKeyword && !incoming.keyword) {
+      throw new Error('取引先キーワードか摘要キーワードのどちらかは入力してください。');
+    }
     if (!incoming.major || !incoming.minor) throw new Error('大分類と小分類を選んでください。');
 
     const key = MasterStore.keyOf('keywordRules', incoming);
@@ -529,18 +542,62 @@ class AccountResolver {
   }
 
   /**
-   * 摘要文からキーワードルールで科目を推定し、{ major, minor } を返す。
+   * 取引先名と摘要から自動仕分けルールを当て、{ major, minor, rule } を返す。
    * 該当なしなら null。AIの判断より優先して適用します（社内ルールの固定化）。
+   *
+   * ・vendorKeyword … 取引先名に含まれる文字（空なら取引先は問わない）
+   * ・keyword       … 摘要・品名に含まれる文字（空なら摘要は問わない）
+   * ・両方指定した場合は【両方に一致】したときだけ適用（安全側）
+   *
+   * ＜適用の優先順位＞
+   * もっとも具体的なルールが勝ちます。
+   *   1. 取引先＋摘要の両方を指定したルール
+   *   2. 取引先だけのルール
+   *   3. 摘要だけのルール
+   * 同じ具体度なら、条件の文字数が長い（＝限定的な）ルールが優先されます。
+   * これにより「北日本カコー かつ 前受金 → ◯◯」のような個別ルールが、
+   * 「前受金 → △△」のような一般ルールより先に適用されます。
    */
-  applyKeywordRule(description) {
-    if (!description) return null;
-    const target = AccountResolver.normalize(description);
-    const rules = this.masters.keywordRules || [];
+  applyKeywordRule(description, vendor) {
+    const descKey = AccountResolver.normalize(description);
+    const vendorKey = AccountResolver.normalize(vendor);
+    // 後方互換：取引先が渡されない呼び出しでは、摘要側で両方を見る
+    const anyKey = vendorKey ? (descKey + ' ' + vendorKey) : descKey;
+    if (!descKey && !vendorKey) return null;
+
+    const rules = (this.masters.keywordRules || []).map(function (rule, index) {
+      const v = AccountResolver.normalize(rule.vendorKeyword);
+      const k = AccountResolver.normalize(rule.keyword);
+      return {
+        rule: rule,
+        index: index,
+        vendorKey: v,
+        keyKey: k,
+        // 具体度：両方指定=2 / 取引先のみ=1 / 摘要のみ=0
+        specificity: (v && k) ? 2 : (v ? 1 : 0),
+        length: v.length + k.length
+      };
+    }).filter(function (r) {
+      return r.vendorKey || r.keyKey;
+    });
+
+    rules.sort(function (a, b) {
+      if (b.specificity !== a.specificity) return b.specificity - a.specificity;
+      if (b.length !== a.length) return b.length - a.length;
+      return a.index - b.index;   // 同条件なら登録順で安定させる
+    });
+
     for (let i = 0; i < rules.length; i++) {
-      const kw = AccountResolver.normalize(rules[i].keyword);
-      if (kw && target.indexOf(kw) !== -1) {
-        return { major: rules[i].major || '', minor: rules[i].minor || '' };
-      }
+      const r = rules[i];
+      if (r.vendorKey && vendorKey.indexOf(r.vendorKey) === -1) continue;
+      // 取引先条件つきのルールは、摘要を摘要欄だけで判定する（誤爆を防ぐ）
+      const haystack = r.vendorKey ? descKey : anyKey;
+      if (r.keyKey && haystack.indexOf(r.keyKey) === -1) continue;
+      return {
+        major: r.rule.major || '',
+        minor: r.rule.minor || '',
+        rule: r.rule
+      };
     }
     return null;
   }
