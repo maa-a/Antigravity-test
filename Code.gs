@@ -97,6 +97,29 @@ function resetMaster(name) {
   return MasterStore.loadAll();
 }
 
+/** ⚙ 画面の表UIで編集したマスタ一覧を保存する（行の追加・修正・削除） */
+function saveMasterList(name, list) {
+  return MasterStore.saveMasterList(name, list);
+}
+
+/** ⚙ 仕分けルールを1件追加（窓5の未確定リストからその場で登録） */
+function addKeywordRule(rule) {
+  return MasterStore.addKeywordRule(rule);
+}
+
+/** ⚙ 社内管理科目を1件追加・更新（未確定リストから新しい科目を作る） */
+function addInternalAccount(item) {
+  return MasterStore.addInternalAccount(item);
+}
+
+/**
+ * 🧾 窓5：マスタを更新したあと、解析済みの明細をもう一度判定し直す。
+ * AIへの再問い合わせは行わないため、追加のAPI料金も待ち時間も発生しません。
+ */
+function reclassifyEntries(entries) {
+  return new PcaInvoiceWindow().reclassify(entries);
+}
+
 /** 📗 Googleスプレッドシートとして出力し、URLを返す */
 function exportToSpreadsheet(payload) {
   return new SheetExporter().toSpreadsheet(payload);
@@ -782,6 +805,22 @@ ${prompt}
   }
 
   /**
+   * マスタを更新したあとに、解析済みの明細をもう一度判定し直します。
+   * 各明細にはAIの生出力（raw）を保持してあるので、Geminiへの再問い合わせは
+   * 不要です（追加料金も待ち時間も発生しません）。
+   *
+   * raw が無い明細（画面で手入力した行など）は、そのまま返して壊しません。
+   */
+  reclassify(entries) {
+    const resolver = new AccountResolver(MasterStore.loadAll());
+    const self = this;
+    return (entries || []).map(function (entry) {
+      if (!entry || !entry.raw) return entry;
+      return self._normalize(entry.raw, resolver, entry.sourceFile);
+    });
+  }
+
+  /**
    * AIの生出力を、マスタに突き合わせた確定値へ変換します。
    * マスタで解決できなかった項目は必ず '' （空欄）になります。
    */
@@ -871,8 +910,47 @@ ${prompt}
       taxAmount:   tax === null ? '' : tax,
       totalAmount: total === null ? '' : total,
       sourceFile:  fileName,
-      warnings:    warnings.join(' / ')
+      warnings:    warnings.join(' / '),
+      // マスタを更新したあとに再判定できるよう、AIの生出力を保持しておきます。
+      // これにより「あとで科目を設定 → 再判定」がAI再解析なしで完了します。
+      raw:         rec
     };
+  }
+
+  /**
+   * 科目が未確定（空欄）の明細を、後から設定するための一覧として抽出します。
+   * 同じ「取引先＋摘要」はまとめ、件数の多い順に並べます
+   * （よく出るものから設定していけるように）。
+   */
+  static collectUnresolved(entries) {
+    const groups = {};
+    (entries || []).forEach(function (e) {
+      if (!e || e.accountCode) return;   // 科目が確定済みの明細は対象外
+      const vendor = e.vendor || '';
+      const desc = e.description || '';
+      const key = vendor + '||' + desc;
+      if (!groups[key]) {
+        groups[key] = {
+          vendor: vendor,
+          description: desc,
+          // ルール化するときの初期キーワード（摘要を優先、無ければ取引先）
+          suggestedKeyword: desc || vendor,
+          count: 0,
+          amount: 0,
+          files: [],
+          reason: e.warnings || (e.minor ? 'PCA勘定科目が未紐付け' : '勘定科目が判定できませんでした'),
+          currentMajor: e.major || '',
+          currentMinor: e.minor || ''
+        };
+      }
+      const g = groups[key];
+      g.count++;
+      g.amount += (typeof e.totalAmount === 'number') ? e.totalAmount : 0;
+      if (g.files.indexOf(e.sourceFile) === -1 && e.sourceFile) g.files.push(e.sourceFile);
+    });
+
+    return Object.keys(groups).map(function (k) { return groups[k]; })
+      .sort(function (a, b) { return b.count - a.count || b.amount - a.amount; });
   }
 
   /** 自社名（請求先）かどうか。取引先として採用しないための判定。 */
@@ -962,7 +1040,9 @@ ${prompt}
       headers: headers,
       rows: rows,
       csv: CsvUtil.build(headers, rows),
-      count: list.length
+      count: list.length,
+      // 科目が未確定の明細（＝あとで設定するもの）を画面に出すための一覧
+      unresolved: PcaInvoiceWindow.collectUnresolved(list)
     };
   }
 

@@ -759,6 +759,114 @@
       padding: 14px;
     }
 
+    .master-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .master-filter {
+      flex: 1 1 240px;
+      padding: 9px 12px;
+      border: 1px solid #cfe3f5;
+      border-radius: 10px;
+      font-size: 0.84em;
+      font-family: inherit;
+      background: #f7fbfe;
+    }
+
+    .master-filter:focus { outline: none; border-color: var(--accent-blue); background: #fff; }
+
+    .master-filter-check {
+      font-size: 0.8em;
+      color: var(--text-sub);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .master-count { font-size: 0.8em; color: var(--text-sub); font-weight: 700; white-space: nowrap; }
+
+    .master-paste-box { display: none; margin-top: 16px; }
+
+    .master-cell-input {
+      width: 100%;
+      min-width: 110px;
+      padding: 6px 8px;
+      border: 1px solid #cfe3f5;
+      border-radius: 8px;
+      font-size: 0.9em;
+      font-family: inherit;
+      background: #fff;
+    }
+
+    .master-cell-input:focus { outline: none; border-color: var(--accent-blue); }
+
+    /* PCA科目が未設定の行を目立たせる（＝あとで設定する対象） */
+    .master-cell-input.is-empty { background: #fffbeb; border-color: #fcd34d; }
+
+    .master-select {
+      width: 100%;
+      min-width: 190px;
+      padding: 6px 8px;
+      border: 1px solid #cfe3f5;
+      border-radius: 8px;
+      font-size: 0.88em;
+      font-family: inherit;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .master-select.is-empty { background: #fffbeb; border-color: #fcd34d; }
+
+    /* 未確定リスト */
+    .unresolved-box {
+      display: none;
+      background: #fffdf5;
+      border: 1px solid #fcd34d;
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .unresolved-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .unresolved-title { font-size: 1.02em; font-weight: 800; color: #92400e; }
+
+    .unresolved-note {
+      font-size: 0.83em;
+      line-height: 1.7;
+      color: #78350f;
+      margin-bottom: 14px;
+    }
+
+    .btn-rule-save {
+      background: linear-gradient(135deg, #0f766e, #14b8a6);
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.8em;
+      font-weight: bold;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-rule-save:hover { filter: brightness(1.08); }
+    .btn-rule-save:disabled { background: #b9c8d6; cursor: not-allowed; }
+
     .master-toggle-btn {
       background: linear-gradient(135deg, #334155, #475569);
       color: #f1f5f9;
@@ -984,19 +1092,47 @@
       <div class="preview-header">
         <div class="preview-title">⚙ 勘定科目マスタ設定</div>
         <div class="preview-actions">
-          <button class="preview-btn preview-btn-add" onclick="MasterPanel.resetCurrent()">↩ このマスタを初期値に戻す</button>
-          <button class="preview-btn preview-btn-download" onclick="MasterPanel.save()">💾 貼り付け内容を取り込む</button>
+          <button class="preview-btn preview-btn-add" onclick="MasterPanel.addRow()">➕ 行を追加</button>
+          <button class="preview-btn preview-btn-add" onclick="MasterPanel.togglePaste()">📋 Excelから一括貼り付け</button>
+          <button class="preview-btn preview-btn-add" onclick="MasterPanel.resetCurrent()">↩ 初期値に戻す</button>
+          <button class="preview-btn preview-btn-download" onclick="MasterPanel.save()">💾 保存する</button>
         </div>
       </div>
 
       <div class="master-tabs">
-        <button class="mode-btn active" data-master="internalAccounts" onclick="MasterPanel.select('internalAccounts')">社内管理科目（PL（詳細）D〜E列）</button>
-        <button class="mode-btn" data-master="pcaAccounts" onclick="MasterPanel.select('pcaAccounts')">PCA勘定科目（会計事務所用）</button>
-        <button class="mode-btn" data-master="departments" onclick="MasterPanel.select('departments')">部門</button>
+        <button class="mode-btn active" data-master="internalAccounts" onclick="MasterPanel.select('internalAccounts')">🏢 社内管理科目（PL（詳細）D〜E列）</button>
+        <button class="mode-btn" data-master="pcaAccounts" onclick="MasterPanel.select('pcaAccounts')">🏛 PCA勘定科目（会計事務所用）</button>
+        <button class="mode-btn" data-master="keywordRules" onclick="MasterPanel.select('keywordRules')">📌 社内の仕分けルール</button>
+        <button class="mode-btn" data-master="departments" onclick="MasterPanel.select('departments')">🏬 部門</button>
       </div>
 
       <div id="master-hint" class="master-hint"></div>
-      <textarea id="master-textarea" class="master-textarea" placeholder="Excelの該当列をそのまま選択してコピーし、ここに貼り付けてください（タブ区切り／カンマ区切りのどちらでもOK）"></textarea>
+
+      <div class="master-filter-bar">
+        <input type="text" id="master-filter" class="master-filter" placeholder="🔍 絞り込み（科目名・コードで検索）" oninput="MasterPanel.renderTable()">
+        <label class="master-filter-check">
+          <input type="checkbox" id="master-only-unlinked" onchange="MasterPanel.renderTable()">
+          未設定の行だけ表示
+        </label>
+        <span id="master-count" class="master-count"></span>
+      </div>
+
+      <div class="table-container" style="max-height: 460px;">
+        <table class="preview-table" id="master-table">
+          <thead id="master-thead"></thead>
+          <tbody id="master-tbody"></tbody>
+        </table>
+      </div>
+
+      <div id="master-paste-box" class="master-paste-box">
+        <div class="master-hint" style="margin-top:0;">
+          Excelの該当列をそのまま選択してコピーし、下に貼り付けてください（タブ区切り／カンマ区切りのどちらでもOK）。<br>
+          <strong>⚠ 貼り付け取り込みは全件が置き換わります。</strong>1件だけ足したい場合は上の表で「➕ 行を追加」をお使いください。
+        </div>
+        <textarea id="master-textarea" class="master-textarea"></textarea>
+        <button class="preview-btn preview-btn-download" style="margin-top:10px;" onclick="MasterPanel.importPaste()">📋 貼り付け内容で全件を置き換える</button>
+      </div>
+
       <div id="master-status" class="status"></div>
     </div>
 
@@ -1074,6 +1210,25 @@
             ※「社内用」と「会計事務所用」は上のボタンで切り替えられ、それぞれ別のレイアウトで出力されます。<br>
             ※ 科目は<strong>「PL（詳細）」の大分類＋小分類のペア</strong>で判定します。一覧に無い科目をAIが作ることはありません。
           </span>
+        </div>
+      </div>
+
+      <!-- 未確定リスト：科目が空欄だった明細を、その場で設定＆ルール化する -->
+      <div id="unresolved-box" class="unresolved-box">
+        <div class="unresolved-header">
+          <div class="unresolved-title">🗂 科目が未確定の明細（あとから設定できます）</div>
+          <button class="preview-btn preview-btn-sheet" onclick="UnresolvedTray.reclassify()">🔄 マスタを反映して再判定</button>
+        </div>
+        <div class="unresolved-note">
+          科目を決めて「ルールとして保存」を押すと、<strong>次回から同じ取引先・摘要は自動で仕分けされます</strong>。
+          社内ルールが固まっていない今は空欄のまま出力し、決まったものから1件ずつ足していく運用ができます。<br>
+          <span style="color:#475569;">※ 保存後に「🔄 マスタを反映して再判定」を押すと、いま読み込み済みの明細にもすぐ反映されます（AIの再解析は行わないため無料・一瞬です）。</span>
+        </div>
+        <div class="table-container" style="max-height: 320px;">
+          <table class="preview-table" id="unresolved-table">
+            <thead id="unresolved-thead"></thead>
+            <tbody id="unresolved-tbody"></tbody>
+          </table>
         </div>
       </div>
 
@@ -1435,26 +1590,65 @@
     };
 
     // ==================================================================
-    // MasterPanel：勘定科目マスタの貼り付け設定パネル
+    // MasterPanel：勘定科目マスタの編集パネル
+    // ------------------------------------------------------------------
+    // 「最初は空欄で出しておいて、決まったものから足していく」運用のため、
+    // 表の上で1行ずつ追加・修正・削除できるようにしています。
+    // ・社内管理科目 … 社内の大分類/小分類と、対応するPCA勘定科目の紐付け
+    // ・PCA勘定科目 … 会計事務所提出用の科目そのもの
+    // ・仕分けルール … 「この取引先/摘要はこの科目」という社内ルール
+    // ・部門
+    // Excelからの一括貼り付け（全件置換）も従来どおり使えます。
     // ==================================================================
     const MasterPanel = {
       current: 'internalAccounts',
       masters: null,
+      rows: [],          // 編集中の行（保存を押すまでサーバーには送りません）
+      dirty: false,
+
+      // マスタごとの列定義。type: 'text' | 'pcaSelect' | 'majorSelect' | 'minorSelect'
+      columns: {
+        internalAccounts: [
+          { key: 'major',   label: '大分類（PL D列）', type: 'text', width: '160px' },
+          { key: 'minor',   label: '小分類（PL E列）', type: 'text', width: '200px' },
+          { key: 'pcaCode', label: '→ PCA勘定科目（会計事務所用）', type: 'pcaSelect' },
+          { key: 'section', label: 'セクション（任意）', type: 'text', width: '110px' }
+        ],
+        pcaAccounts: [
+          { key: 'code',  label: '科目コード', type: 'text', width: '110px' },
+          { key: 'name',  label: '勘定科目名', type: 'text', width: '220px' },
+          { key: 'major', label: '大分類（任意）', type: 'text', width: '130px' }
+        ],
+        keywordRules: [
+          { key: 'keyword', label: 'キーワード（取引先名・摘要に含まれる文字）', type: 'text', width: '260px' },
+          { key: 'major',   label: '→ 大分類', type: 'majorSelect' },
+          { key: 'minor',   label: '→ 小分類', type: 'minorSelect' }
+        ],
+        departments: [
+          { key: 'code', label: '部門コード', type: 'text', width: '110px' },
+          { key: 'name', label: '部門名', type: 'text', width: '240px' }
+        ]
+      },
 
       hints: {
         internalAccounts:
-          '<strong>社内財務管理表「PL（詳細）」シートの D列（大分類）〜 E列（小分類）</strong>をそのまま選択してコピーし、下に貼り付けてください。<br>' +
-          'D列は結合セル（見出し行にだけ値が入り明細行は空欄）になっていますが、<strong>空欄は直前の大分類を自動で引き継ぐ</strong>ので、Excelから貼り付けたそのままの形で取り込めます。<br>' +
-          '3列目に対応する<strong>PCA勘定科目コード</strong>（例: 752）を足しておくと、会計事務所用CSVへの変換まで自動化されます。3列目が空の行は、会計事務所用CSVでは科目欄が<strong>空欄</strong>で出力されます。<br>' +
-          '<span style="color:#475569;">例：<code>共通[Tab]デザイン費[Tab]710[Tab]原価</code>（4列目のセクションは任意）</span><br>' +
-          '<span style="color:#b45309;">⚠ 「版権元RY」のように同じ小分類名が複数の大分類にある場合、科目は<strong>大分類とのペア</strong>で識別されます。大分類が特定できない明細は、どちらか一方を勝手に選ばず<strong>空欄</strong>で出力します。</span>',
+          '社内財務管理表「PL（詳細）」の <strong>D列（大分類）／E列（小分類）</strong> と、それに対応する <strong>PCA勘定科目</strong> の紐付け表です。<br>' +
+          '<strong>PCA勘定科目が「（未設定 → 空欄で出力）」の行は、会計事務所用CSVでは科目欄が空欄になります。</strong>' +
+          '決まったものからプルダウンで選んで保存していけば大丈夫です。<br>' +
+          '<span style="color:#475569;">・社内にしか無い科目（例：型代）も「➕ 行を追加」でいつでも増やせます。<br>' +
+          '・小分類が空の場合は大分類と同じ名前として扱います（販管費の科目はこの形です）。</span><br>' +
+          '<span style="color:#b45309;">⚠ 「版権元RY」のように同じ小分類名が複数の大分類にある場合、科目は<strong>大分類とのペア</strong>で識別されます。</span>',
         pcaAccounts:
-          '<strong>PCA会計の勘定科目マスタ</strong>を「コード / 科目名 / 大分類」の順で貼り付けてください。<br>' +
-          '<span style="color:#475569;">例：<code>752[Tab]消耗品費[Tab]販管費</code></span><br>' +
-          '※ 勘定科目設定Excelを使う場合は、<strong>グレーアウトされた行を削除してから</strong>コピーしてください（グレーアウト行はここに入れない＝使用しない、という運用になります）。',
+          '<strong>会計事務所へ提出するPCA会計の勘定科目</strong>です。ここに登録されている科目だけが会計事務所用CSVに出力されます。<br>' +
+          '<span style="color:#475569;">・PCA側で新しい科目を作った場合は、ここに「➕ 行を追加」で足してください。<br>' +
+          '・勘定科目設定Excelを使う場合は、<strong>グレーアウトされた行を除いて</strong>貼り付けてください（登録していない科目は絶対に出力されません）。</span>',
+        keywordRules:
+          '<strong>社内の仕分けルール</strong>です。請求書の取引先名や摘要に「キーワード」が含まれていたら、指定した科目に自動で仕分けます。<br>' +
+          '<strong>AIの判断よりこのルールが優先されます</strong>ので、社内ルールが決まったものから登録していってください。<br>' +
+          '<span style="color:#475569;">例：キーワード「画稿費」→ 大分類「共通」／小分類「デザイン費」<br>' +
+          '窓5の「科目が未確定の明細」からもワンクリックで登録できます。</span>',
         departments:
-          '<strong>部門マスタ</strong>を「部門コード / 部門名」の順で貼り付けてください。<br>' +
-          '<span style="color:#475569;">例：<code>0[Tab]共通部門</code></span>'
+          '<strong>部門マスタ</strong>です。ここに無い部門名をAIが返しても採用されず、部門欄は空欄になります。'
       },
 
       toggle() {
@@ -1467,28 +1661,195 @@
         }
       },
 
+      togglePaste() {
+        const box = document.getElementById('master-paste-box');
+        const willOpen = box.style.display !== 'block';
+        box.style.display = willOpen ? 'block' : 'none';
+        if (willOpen) {
+          document.getElementById('master-textarea').value = this._toText(this.current);
+          box.scrollIntoView({ behavior: 'smooth' });
+        }
+      },
+
       select(name) {
+        if (this.dirty && !confirm('保存していない変更があります。破棄して切り替えますか？')) return;
         this.current = name;
+        this.dirty = false;
         document.querySelectorAll('.master-tabs .mode-btn').forEach(btn => {
           btn.classList.toggle('active', btn.dataset.master === name);
         });
         document.getElementById('master-hint').innerHTML = this.hints[name] || '';
-        document.getElementById('master-textarea').value = this._toText(name);
+        document.getElementById('master-paste-box').style.display = 'none';
+        document.getElementById('master-filter').value = '';
+        document.getElementById('master-only-unlinked').checked = false;
+        this.rows = ((this.masters || {})[name] || []).map(x => Object.assign({}, x));
+        this.renderTable();
         this._setStatus('', '');
       },
 
-      _toText(name) {
-        const data = (this.masters || {})[name] || [];
-        if (name === 'internalAccounts') {
-          return data.map(a => [a.major, a.minor, a.pcaCode || '', a.section || ''].join('\t')).join('\n');
+      /** PCA勘定科目のプルダウン用選択肢（未設定＝空欄を先頭に置く）。 */
+      _pcaOptions() {
+        const list = (this.masters || {}).pcaAccounts || [];
+        return [{ value: '', label: '（未設定 → 空欄で出力）' }].concat(
+          list.map(a => ({ value: String(a.code), label: a.code + ' ' + a.name }))
+        );
+      },
+
+      _majorOptions() {
+        const seen = {};
+        const list = [];
+        ((this.masters || {}).internalAccounts || []).forEach(a => {
+          if (a.major && !seen[a.major]) { seen[a.major] = true; list.push({ value: a.major, label: a.major }); }
+        });
+        return [{ value: '', label: '（選択してください）' }].concat(list);
+      },
+
+      _minorOptions(major) {
+        const list = ((this.masters || {}).internalAccounts || [])
+          .filter(a => !major || a.major === major)
+          .map(a => ({ value: a.minor, label: a.minor }));
+        return [{ value: '', label: '（選択してください）' }].concat(list);
+      },
+
+      /** 絞り込み条件に合う行だけを { row, index } の形で返す。 */
+      _visibleRows() {
+        const q = (document.getElementById('master-filter').value || '').trim().toLowerCase();
+        const onlyUnlinked = document.getElementById('master-only-unlinked').checked;
+        const cols = this.columns[this.current];
+
+        return this.rows.map((row, index) => ({ row, index })).filter(({ row }) => {
+          if (onlyUnlinked) {
+            if (this.current === 'internalAccounts' && row.pcaCode) return false;
+            if (this.current !== 'internalAccounts') {
+              const hasEmpty = cols.some(c => !String(row[c.key] || '').trim());
+              if (!hasEmpty) return false;
+            }
+          }
+          if (!q) return true;
+          return cols.some(c => String(row[c.key] || '').toLowerCase().indexOf(q) !== -1);
+        });
+      },
+
+      renderTable() {
+        const cols = this.columns[this.current];
+        const thead = document.getElementById('master-thead');
+        const tbody = document.getElementById('master-tbody');
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+
+        const headRow = document.createElement('tr');
+        cols.forEach(c => {
+          const th = document.createElement('th');
+          th.textContent = c.label;
+          if (c.width) th.style.width = c.width;
+          headRow.appendChild(th);
+        });
+        const thDel = document.createElement('th');
+        thDel.textContent = '削除';
+        thDel.className = 'system-header';
+        thDel.style.width = '70px';
+        headRow.appendChild(thDel);
+        thead.appendChild(headRow);
+
+        const visible = this._visibleRows();
+
+        visible.forEach(({ row, index }) => {
+          const tr = document.createElement('tr');
+
+          cols.forEach(c => {
+            const td = document.createElement('td');
+            td.appendChild(this._buildCell(c, row, index));
+            tr.appendChild(td);
+          });
+
+          const tdDel = document.createElement('td');
+          tdDel.style.textAlign = 'center';
+          const del = document.createElement('button');
+          del.className = 'btn-row-delete';
+          del.textContent = '削除';
+          del.onclick = () => {
+            this.rows.splice(index, 1);
+            this.dirty = true;
+            this.renderTable();
+          };
+          tdDel.appendChild(del);
+          tr.appendChild(tdDel);
+
+          tbody.appendChild(tr);
+        });
+
+        const unlinked = this.current === 'internalAccounts'
+          ? this.rows.filter(r => !r.pcaCode).length : 0;
+        document.getElementById('master-count').textContent =
+          '全 ' + this.rows.length + ' 件 / 表示 ' + visible.length + ' 件'
+          + (unlinked ? ' / PCA未設定 ' + unlinked + ' 件' : '')
+          + (this.dirty ? ' ⚠ 未保存' : '');
+      },
+
+      _buildCell(col, row, index) {
+        if (col.type === 'text') {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'master-cell-input';
+          input.value = row[col.key] || '';
+          input.addEventListener('input', () => {
+            this.rows[index][col.key] = input.value;
+            this.dirty = true;
+          });
+          return input;
         }
-        if (name === 'pcaAccounts') {
-          return data.map(a => [a.code, a.name, a.major || ''].join('\t')).join('\n');
+
+        const select = document.createElement('select');
+        select.className = 'master-select';
+
+        let options;
+        if (col.type === 'pcaSelect') options = this._pcaOptions();
+        else if (col.type === 'majorSelect') options = this._majorOptions();
+        else options = this._minorOptions(row.major);
+
+        options.forEach(o => {
+          const opt = document.createElement('option');
+          opt.value = o.value;
+          opt.textContent = o.label;
+          select.appendChild(opt);
+        });
+
+        // 保存済みの値が選択肢に無い場合でも消えないよう、その値を足しておく
+        const current = String(row[col.key] || '');
+        if (current && !options.some(o => o.value === current)) {
+          const opt = document.createElement('option');
+          opt.value = current;
+          opt.textContent = current + '（マスタに無い値）';
+          select.appendChild(opt);
         }
-        if (name === 'departments') {
-          return data.map(d => [d.code, d.name].join('\t')).join('\n');
-        }
-        return '';
+        select.value = current;
+        if (!current) select.classList.add('is-empty');
+
+        select.addEventListener('change', () => {
+          this.rows[index][col.key] = select.value;
+          this.dirty = true;
+          // 大分類を変えたら小分類の選択肢が変わるので描き直す
+          if (col.type === 'majorSelect') {
+            this.rows[index].minor = '';
+            this.renderTable();
+          } else {
+            select.classList.toggle('is-empty', !select.value);
+            this.renderTable();
+          }
+        });
+        return select;
+      },
+
+      addRow() {
+        const blank = {};
+        this.columns[this.current].forEach(c => { blank[c.key] = ''; });
+        this.rows.unshift(blank);
+        this.dirty = true;
+        document.getElementById('master-filter').value = '';
+        document.getElementById('master-only-unlinked').checked = false;
+        this.renderTable();
+        const first = document.querySelector('#master-tbody input.master-cell-input, #master-tbody select.master-select');
+        if (first) first.focus();
       },
 
       _setStatus(msg, type) {
@@ -1498,6 +1859,40 @@
       },
 
       save() {
+        showLockScreen('マスタを保存しています...');
+        google.script.run
+          .withSuccessHandler(res => {
+            hideLockScreen();
+            this.masters = res.masters;
+            this.dirty = false;
+            this.rows = (res.masters[this.current] || []).map(x => Object.assign({}, x));
+            this.renderTable();
+            let msg = res.count + ' 件を保存しました。';
+            if (res.warnings && res.warnings.length) {
+              msg += '（注意 ' + res.warnings.length + ' 件：' + res.warnings.slice(0, 2).join(' / ') + '）';
+            }
+            this._setStatus(msg, 'success');
+            LogPanel.add('マスタ保存: ' + this.current + ' — ' + msg, 'success');
+            UnresolvedTray.notifyMasterChanged();
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            this._setStatus('保存できませんでした: ' + err, 'error');
+            LogPanel.add('マスタ保存エラー: ' + err, 'error');
+          })
+          .saveMasterList(this.current, this.rows);
+      },
+
+      _toText(name) {
+        const data = (this.masters || {})[name] || [];
+        if (name === 'internalAccounts') return data.map(a => [a.major, a.minor, a.pcaCode || '', a.section || ''].join('\t')).join('\n');
+        if (name === 'pcaAccounts') return data.map(a => [a.code, a.name, a.major || ''].join('\t')).join('\n');
+        if (name === 'departments') return data.map(d => [d.code, d.name].join('\t')).join('\n');
+        if (name === 'keywordRules') return data.map(k => [k.keyword, k.major || '', k.minor || ''].join('\t')).join('\n');
+        return '';
+      },
+
+      importPaste() {
         const text = document.getElementById('master-textarea').value;
         if (!text.trim()) {
           this._setStatus('貼り付け内容が空です。', 'error');
@@ -1509,15 +1904,22 @@
           departments: 'importDepartments'
         }[this.current];
 
+        if (!fnName) {
+          this._setStatus('このマスタは貼り付け取り込みに対応していません。上の表で編集してください。', 'error');
+          return;
+        }
+        if (!confirm('貼り付けた内容で全件を置き換えます。よろしいですか？')) return;
+
         showLockScreen('マスタを取り込んでいます...');
         google.script.run
           .withSuccessHandler(res => {
             hideLockScreen();
             let msg = res.count + ' 件を取り込みました。';
-            if (res.unlinked) msg += '（うち ' + res.unlinked + ' 件はPCA科目コード未設定 → 会計事務所用CSVでは空欄になります）';
+            if (res.unlinked) msg += '（うち ' + res.unlinked + ' 件はPCA科目が未設定 → 会計事務所用CSVでは空欄になります）';
             this._setStatus(msg, 'success');
             LogPanel.add('マスタ取り込み: ' + msg, 'success');
-            this.reload();
+            document.getElementById('master-paste-box').style.display = 'none';
+            this.reload(() => { this.dirty = false; this.select(this.current); });
           })
           .withFailureHandler(err => {
             hideLockScreen();
@@ -1527,14 +1929,17 @@
       },
 
       resetCurrent() {
+        if (!confirm('このマスタを初期値に戻します。いま保存されている内容は失われます。よろしいですか？')) return;
         showLockScreen('初期値に戻しています...');
         google.script.run
           .withSuccessHandler(masters => {
             hideLockScreen();
             this.masters = masters;
+            this.dirty = false;
             this.select(this.current);
             this._setStatus('初期値に戻しました。', 'success');
             LogPanel.add('マスタを初期値に戻しました: ' + this.current, 'info');
+            UnresolvedTray.notifyMasterChanged();
           })
           .withFailureHandler(err => {
             hideLockScreen();
@@ -1543,16 +1948,200 @@
           .resetMaster(this.current);
       },
 
-      reload() {
+      reload(callback) {
         google.script.run
           .withSuccessHandler(masters => {
             this.masters = masters;
-            if (document.getElementById('master-panel').style.display === 'block') {
-              document.getElementById('master-textarea').value = this._toText(this.current);
+            if (!this.dirty && document.getElementById('master-panel').style.display === 'block') {
+              this.rows = (masters[this.current] || []).map(x => Object.assign({}, x));
+              this.renderTable();
             }
+            if (callback) callback();
           })
           .withFailureHandler(() => { /* マスタ取得失敗時も本体は動作継続 */ })
           .getMasters();
+      }
+    };
+
+    // ==================================================================
+    // UnresolvedTray：窓5で科目が未確定だった明細の「あとで設定」トレイ。
+    // ------------------------------------------------------------------
+    // 社内ルールが決まっていない段階では空欄のまま出力し、
+    // 決まったものからここで科目を選んで「ルールとして保存」するだけで、
+    // 次回以降は自動で仕分けされるようになります。
+    // ==================================================================
+    const UnresolvedTray = {
+      items: [],
+
+      /** 未確定の明細一覧（サーバーが集計したもの）を受け取って描画する。 */
+      load(unresolved) {
+        this.items = (unresolved || []).map(x => Object.assign({
+          selectedMajor: x.currentMajor || '',
+          selectedMinor: x.currentMinor || '',
+          keyword: x.suggestedKeyword || ''
+        }, x));
+        // Object.assign の順序で上書きされないよう、選択状態を入れ直す
+        this.items.forEach((item, i) => {
+          item.selectedMajor = (unresolved[i].currentMajor) || '';
+          item.selectedMinor = (unresolved[i].currentMinor) || '';
+          item.keyword = unresolved[i].suggestedKeyword || '';
+        });
+        this.render();
+      },
+
+      render() {
+        const box = document.getElementById('unresolved-box');
+        if (!this.items.length) {
+          box.style.display = 'none';
+          return;
+        }
+        box.style.display = 'block';
+
+        const thead = document.getElementById('unresolved-thead');
+        const tbody = document.getElementById('unresolved-tbody');
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+
+        const headRow = document.createElement('tr');
+        ['件数', '取引先', '摘要', '未確定の理由', 'ルールにするキーワード', '→ 大分類', '→ 小分類', '登録']
+          .forEach(label => {
+            const th = document.createElement('th');
+            th.textContent = label;
+            headRow.appendChild(th);
+          });
+        thead.appendChild(headRow);
+
+        this.items.forEach((item, idx) => {
+          const tr = document.createElement('tr');
+
+          const addText = (value, opts) => {
+            const td = document.createElement('td');
+            td.textContent = value;
+            if (opts && opts.small) td.style.fontSize = '0.9em';
+            if (opts && opts.color) td.style.color = opts.color;
+            tr.appendChild(td);
+          };
+
+          addText(item.count + ' 件');
+          addText(item.vendor || '（不明）');
+          addText(item.description || '（記載なし）');
+          addText(item.reason || '', { small: true, color: '#b45309' });
+
+          // キーワード入力
+          const tdKw = document.createElement('td');
+          const kw = document.createElement('input');
+          kw.type = 'text';
+          kw.className = 'master-cell-input';
+          kw.value = item.keyword;
+          kw.addEventListener('input', () => { item.keyword = kw.value; });
+          tdKw.appendChild(kw);
+          tr.appendChild(tdKw);
+
+          // 大分類・小分類のプルダウン
+          const tdMajor = document.createElement('td');
+          const majorSel = this._select(MasterPanel._majorOptions(), item.selectedMajor);
+          tdMajor.appendChild(majorSel);
+          tr.appendChild(tdMajor);
+
+          const tdMinor = document.createElement('td');
+          const minorSel = this._select(MasterPanel._minorOptions(item.selectedMajor), item.selectedMinor);
+          tdMinor.appendChild(minorSel);
+          tr.appendChild(tdMinor);
+
+          majorSel.addEventListener('change', () => {
+            item.selectedMajor = majorSel.value;
+            item.selectedMinor = '';
+            this.render();
+          });
+          minorSel.addEventListener('change', () => { item.selectedMinor = minorSel.value; });
+
+          // 登録ボタン
+          const tdBtn = document.createElement('td');
+          const btn = document.createElement('button');
+          btn.className = 'btn-rule-save';
+          btn.textContent = 'ルールとして保存';
+          btn.onclick = () => this.saveRule(idx);
+          tdBtn.appendChild(btn);
+          tr.appendChild(tdBtn);
+
+          tbody.appendChild(tr);
+        });
+      },
+
+      _select(options, value) {
+        const sel = document.createElement('select');
+        sel.className = 'master-select';
+        options.forEach(o => {
+          const opt = document.createElement('option');
+          opt.value = o.value;
+          opt.textContent = o.label;
+          sel.appendChild(opt);
+        });
+        sel.value = value || '';
+        if (!sel.value) sel.classList.add('is-empty');
+        return sel;
+      },
+
+      saveRule(idx) {
+        const item = this.items[idx];
+        if (!item.keyword || !item.keyword.trim()) {
+          LogPanel.add('ルール登録: キーワードを入力してください', 'error');
+          return;
+        }
+        if (!item.selectedMajor || !item.selectedMinor) {
+          LogPanel.add('ルール登録: 大分類と小分類を選んでください', 'error');
+          return;
+        }
+
+        showLockScreen('仕分けルールを保存しています...');
+        google.script.run
+          .withSuccessHandler(res => {
+            hideLockScreen();
+            MasterPanel.masters = res.masters;
+            LogPanel.add('仕分けルールを保存しました: 「' + item.keyword + '」 → '
+              + item.selectedMajor + ' / ' + item.selectedMinor
+              + '（登録済みルール ' + res.count + ' 件）', 'success');
+            this.reclassify();
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            LogPanel.add('ルール登録エラー: ' + err, 'error');
+          })
+          .addKeywordRule({
+            keyword: item.keyword.trim(),
+            major: item.selectedMajor,
+            minor: item.selectedMinor
+          });
+      },
+
+      /** マスタ更新後、読み込み済みの明細をAI再解析なしで判定し直す。 */
+      reclassify() {
+        if (!PcaPreview.entries.length) {
+          LogPanel.add('再判定: 対象の明細がありません', 'info');
+          return;
+        }
+        if (PcaPreview.edited && !confirm('プレビュー表で手修正した内容は再判定で元に戻ります。実行しますか？')) return;
+
+        showLockScreen('マスタを反映して再判定しています...');
+        google.script.run
+          .withSuccessHandler(entries => {
+            hideLockScreen();
+            PcaPreview.entries = entries || [];
+            PcaPreview.edited = false;
+            const resolved = PcaPreview.entries.filter(e => e.accountCode).length;
+            LogPanel.add('再判定が完了しました（科目確定 ' + resolved + ' / 全 ' + PcaPreview.entries.length + ' 明細）', 'success');
+            PcaPreview.rebuild();
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            LogPanel.add('再判定エラー: ' + err, 'error');
+          })
+          .reclassifyEntries(PcaPreview.entries);
+      },
+
+      /** マスタ設定パネル側で保存された直後に呼ばれる。 */
+      notifyMasterChanged() {
+        if (this.items.length) this.render();
       }
     };
 
@@ -1845,8 +2434,12 @@
       entries: [],          // サーバーから返った正規化済み明細（全ファイル分）
       mode: 'internal',
       table: { headers: [], rows: [] },
+      edited: false,        // プレビュー表を手修正したか（再判定前の確認に使用）
 
       setMode(mode) {
+        if (mode === this.mode) return;
+        // 表を組み直すため、手修正した内容は失われます。先に確認します。
+        if (this.edited && !confirm('プレビュー表で手修正した内容は、出力形式を切り替えると元に戻ります。切り替えますか？')) return;
         this.mode = mode;
         document.getElementById('pca-mode-internal').classList.toggle('active', mode === 'internal');
         document.getElementById('pca-mode-office').classList.toggle('active', mode === 'office');
@@ -1862,6 +2455,8 @@
       clear() {
         this.entries = [];
         this.table = { headers: [], rows: [] };
+        this.edited = false;
+        UnresolvedTray.load([]);
         document.getElementById('pca-section').style.display = 'none';
       },
 
@@ -1876,6 +2471,9 @@
           .withSuccessHandler(res => {
             hideLockScreen();
             this.table = { headers: res.headers, rows: res.rows };
+            this.edited = false;
+            // 科目が未確定の明細を「あとで設定」トレイに流し込む
+            UnresolvedTray.load(res.unresolved);
             this.render();
             const section = document.getElementById('pca-section');
             section.style.display = 'block';
@@ -1918,11 +2516,15 @@
               tr.style.background = '#fff7ed';
             }
           },
-          onEdit: (rIdx, cIdx, val) => { this.table.rows[rIdx][cIdx] = val; },
+          onEdit: (rIdx, cIdx, val) => {
+            this.table.rows[rIdx][cIdx] = val;
+            this.edited = true;
+          },
           onRowAction: (action, rIdx) => {
             if (action === 'insertAbove') this.table.rows.splice(rIdx, 0, Array(this.table.headers.length).fill(''));
             else if (action === 'insertBelow') this.table.rows.splice(rIdx + 1, 0, Array(this.table.headers.length).fill(''));
             else if (action === 'delete') this.table.rows.splice(rIdx, 1);
+            this.edited = true;
             this.render();
           }
         });

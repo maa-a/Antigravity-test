@@ -13,6 +13,23 @@
  * ------------------------------------------------------------------
  */
 
+/**
+ * このファイル内だけで使う軽量ヘルパー。
+ * マスタ編集は業務ロジック（窓1〜5）から独立させたいので、
+ * Code.gs の CsvUtil には依存させずここに最小限だけ持ちます。
+ */
+class CsvUtilLite {
+  /** 値を文字列にして前後の空白と制御文字を落とす。null/undefined は ''。 */
+  static trim(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replace(/[\u0000-\u001F\u007F]/g, '')
+      .replace(/\u3000/g, ' ')
+      .trim();
+  }
+}
+
+
 class MasterStore {
 
   static get KEYS() {
@@ -163,6 +180,198 @@ class MasterStore {
     }
     MasterStore.save('pcaAccounts', list);
     return { count: list.length };
+  }
+
+  // ==================================================================
+  // ここから：画面の表UIから1行ずつ編集・追加・削除するための保存処理
+  // ------------------------------------------------------------------
+  // 「最初は空欄で出しておいて、決まったものから足していく」運用のため、
+  // 全置換の貼り付け取り込みとは別に、編集後の一覧をそのまま保存する
+  // 経路を用意しています。保存前に必ず検証し、問題があれば保存せずに
+  // 理由を返します（壊れたマスタが保存されて業務が止まらないように）。
+  // ==================================================================
+
+  /** マスタごとの重複判定キー。 */
+  static keyOf(name, item) {
+    if (name === 'internalAccounts') {
+      return AccountResolver.normalize(item.major) + '||' + AccountResolver.normalize(item.minor);
+    }
+    if (name === 'pcaAccounts' || name === 'departments') {
+      return String(item.code === undefined ? '' : item.code).trim();
+    }
+    if (name === 'keywordRules') {
+      return AccountResolver.normalize(item.keyword);
+    }
+    return JSON.stringify(item);
+  }
+
+  /**
+   * 画面から渡された一覧を検証して正規化する。
+   * 戻り値：{ list: 正規化済み一覧, errors: [エラー文言], warnings: [注意文言] }
+   */
+  static validate(name, rawList) {
+    const list = [];
+    const errors = [];
+    const warnings = [];
+    const seen = {};
+    const input = rawList || [];
+
+    // PCA科目コードの妥当性チェック用（社内管理科目・仕分けルールで使用）
+    const pcaCodes = {};
+    (MasterStore.load('pcaAccounts') || []).forEach(function (a) {
+      pcaCodes[String(a.code).trim()] = true;
+    });
+
+    input.forEach(function (raw, idx) {
+      const lineNo = idx + 1;
+      const item = {};
+
+      if (name === 'internalAccounts') {
+        item.section = CsvUtilLite.trim(raw.section);
+        item.major = CsvUtilLite.trim(raw.major);
+        item.minor = CsvUtilLite.trim(raw.minor);
+        item.pcaCode = CsvUtilLite.trim(raw.pcaCode);
+        if (!item.major && !item.minor) return;          // 空行は無視
+        if (!item.major) { errors.push(lineNo + '行目: 大分類が空です'); return; }
+        if (!item.minor) item.minor = item.major;        // 販管費のように小分類＝大分類のケース
+        if (item.pcaCode && !pcaCodes[item.pcaCode]) {
+          errors.push(lineNo + '行目: PCA勘定科目コード「' + item.pcaCode + '」はPCA勘定科目マスタにありません');
+          return;
+        }
+        if (!item.pcaCode) {
+          warnings.push('「' + item.major + ' / ' + item.minor + '」はPCA科目が未設定です（会計事務所用CSVでは空欄で出力されます）');
+        }
+
+      } else if (name === 'pcaAccounts') {
+        item.code = CsvUtilLite.trim(raw.code);
+        item.name = CsvUtilLite.trim(raw.name);
+        item.major = CsvUtilLite.trim(raw.major);
+        if (!item.code && !item.name) return;
+        if (!item.code) { errors.push(lineNo + '行目: 勘定科目コードが空です'); return; }
+        if (!item.name) { errors.push(lineNo + '行目: 勘定科目名が空です'); return; }
+
+      } else if (name === 'departments') {
+        item.code = CsvUtilLite.trim(raw.code);
+        item.name = CsvUtilLite.trim(raw.name);
+        if (item.code === '' && item.name === '') return;
+        if (!item.name) { errors.push(lineNo + '行目: 部門名が空です'); return; }
+
+      } else if (name === 'keywordRules') {
+        item.keyword = CsvUtilLite.trim(raw.keyword);
+        item.major = CsvUtilLite.trim(raw.major);
+        item.minor = CsvUtilLite.trim(raw.minor);
+        if (!item.keyword) return;
+        if (!item.major || !item.minor) {
+          errors.push(lineNo + '行目: キーワード「' + item.keyword + '」の大分類・小分類を選んでください');
+          return;
+        }
+
+      } else {
+        errors.push('未知のマスタ名です: ' + name);
+        return;
+      }
+
+      const key = MasterStore.keyOf(name, item);
+      if (seen[key]) {
+        warnings.push(lineNo + '行目: 重複していたため1件にまとめました');
+        return;
+      }
+      seen[key] = true;
+      list.push(item);
+    });
+
+    // 仕分けルールの参照先が社内管理科目に存在するかを確認
+    if (name === 'keywordRules') {
+      const pairs = {};
+      (MasterStore.load('internalAccounts') || []).forEach(function (a) {
+        pairs[AccountResolver.normalize(a.major) + '||' + AccountResolver.normalize(a.minor)] = true;
+      });
+      list.forEach(function (rule) {
+        const k = AccountResolver.normalize(rule.major) + '||' + AccountResolver.normalize(rule.minor);
+        if (!pairs[k]) {
+          errors.push('キーワード「' + rule.keyword + '」の科目「' + rule.major + ' / ' + rule.minor + '」が社内管理科目にありません');
+        }
+      });
+    }
+
+    return { list: list, errors: errors, warnings: warnings };
+  }
+
+  /**
+   * 画面の表UIで編集した一覧を保存する。
+   * 検証エラーがある場合は保存せず例外を投げます（部分保存で
+   * マスタが壊れるのを防ぐため）。
+   */
+  static saveMasterList(name, rawList) {
+    if (!MasterStore.KEYS[name]) throw new Error('未知のマスタ名です: ' + name);
+    const result = MasterStore.validate(name, rawList);
+    if (result.errors.length) {
+      throw new Error('保存できませんでした。\n・' + result.errors.slice(0, 10).join('\n・'));
+    }
+    if (result.list.length === 0) {
+      throw new Error('保存できる行がありません。1行以上入力してください。');
+    }
+    MasterStore.save(name, result.list);
+    return {
+      count: result.list.length,
+      warnings: result.warnings,
+      masters: MasterStore.loadAll()
+    };
+  }
+
+  /**
+   * 仕分けルールを1件だけ追加（同じキーワードがあれば上書き）。
+   * 窓5の「未確定リスト」から、その場でルール化するために使います。
+   */
+  static addKeywordRule(rule) {
+    const list = (MasterStore.load('keywordRules') || []).slice();
+    const incoming = {
+      keyword: CsvUtilLite.trim(rule && rule.keyword),
+      major: CsvUtilLite.trim(rule && rule.major),
+      minor: CsvUtilLite.trim(rule && rule.minor)
+    };
+    if (!incoming.keyword) throw new Error('キーワードを入力してください。');
+    if (!incoming.major || !incoming.minor) throw new Error('大分類と小分類を選んでください。');
+
+    const key = MasterStore.keyOf('keywordRules', incoming);
+    const next = list.filter(function (x) {
+      return MasterStore.keyOf('keywordRules', x) !== key;
+    });
+    next.push(incoming);
+
+    const result = MasterStore.validate('keywordRules', next);
+    if (result.errors.length) throw new Error(result.errors[0]);
+
+    MasterStore.save('keywordRules', result.list);
+    return { count: result.list.length, masters: MasterStore.loadAll() };
+  }
+
+  /**
+   * 社内管理科目を1件だけ追加・更新（同じ大分類＋小分類なら上書き）。
+   * 未確定リストから「この科目を新しく作る」ときに使います。
+   */
+  static addInternalAccount(item) {
+    const list = (MasterStore.load('internalAccounts') || []).slice();
+    const incoming = {
+      section: CsvUtilLite.trim(item && item.section),
+      major: CsvUtilLite.trim(item && item.major),
+      minor: CsvUtilLite.trim(item && item.minor),
+      pcaCode: CsvUtilLite.trim(item && item.pcaCode)
+    };
+    if (!incoming.major) throw new Error('大分類を入力してください。');
+    if (!incoming.minor) incoming.minor = incoming.major;
+
+    const key = MasterStore.keyOf('internalAccounts', incoming);
+    const next = list.filter(function (x) {
+      return MasterStore.keyOf('internalAccounts', x) !== key;
+    });
+    next.push(incoming);
+
+    const result = MasterStore.validate('internalAccounts', next);
+    if (result.errors.length) throw new Error(result.errors[0]);
+
+    MasterStore.save('internalAccounts', result.list);
+    return { count: result.list.length, masters: MasterStore.loadAll() };
   }
 
   /** 部門マスタの取り込み。期待する列：[部門コード, 部門名] */
