@@ -1,0 +1,2416 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/encoding-japanese/2.0.0/encoding.min.js"></script>
+  <style>
+    :root {
+      --primary-color: #0c2340;
+      --accent-blue: #0284c7;
+      --accent-blue-soft: #38bdf8;
+      --accent-purple: #6366f1;
+      --accent-orange: #f59e0b;
+      --accent-green: #10b981;
+      --accent-teal: #0d9488;
+      --accent-slate: #475569;
+      --bg-color: #eaf4fb;
+      --card-bg: #ffffff;
+      --card-border: #dbeefc;
+      --text-main: #10263c;
+      --text-sub: #5c7690;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', 'Hiragino Kaku Gothic ProN', sans-serif;
+      background: radial-gradient(circle at 10% 0%, #f3fafe 0%, #e4f2fb 45%, #d7ecfa 100%);
+      background-attachment: fixed;
+      margin: 0;
+      padding: 24px 20px 60px;
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1400px;
+      margin: auto;
+      text-align: center;
+      position: relative;
+    }
+
+    .key-settings-container {
+      position: absolute;
+      top: 0;
+      right: 0;
+      text-align: right;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .key-toggle-btn {
+      background: linear-gradient(135deg, #0c2340, #14314f);
+      color: #eaf4fb;
+      border: none;
+      padding: 9px 16px;
+      border-radius: 12px;
+      font-size: 0.8em;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      box-shadow: 0 4px 10px -3px rgba(12,35,64,0.4);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .key-toggle-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 14px -3px rgba(12,35,64,0.45);
+    }
+
+    .key-box {
+      display: none;
+      background: #ffffff;
+      padding: 18px;
+      border-radius: 16px;
+      box-shadow: 0 14px 30px -10px rgba(2,132,199,0.25), 0 4px 10px -4px rgba(2,132,199,0.12);
+      border: 1px solid var(--card-border);
+      text-align: left;
+      width: 290px;
+    }
+
+    .key-box-label {
+      font-size: 0.75em;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 6px;
+      color: #334155;
+    }
+
+    .key-input {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid #cfe3f5;
+      border-radius: 10px;
+      font-size: 0.8em;
+      margin-bottom: 14px;
+      background: #f7fbfe;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .key-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      background: #ffffff;
+    }
+
+    .model-standalone-box {
+      background: #ffffff;
+      padding: 12px 14px;
+      border-radius: 16px;
+      box-shadow: 0 10px 24px -8px rgba(2,132,199,0.18), 0 3px 8px -3px rgba(2,132,199,0.08);
+      border: 1px solid var(--card-border);
+      text-align: left;
+      width: 290px;
+    }
+
+    .model-select-label {
+      font-size: 0.75em;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 6px;
+      color: #334155;
+    }
+
+    .model-select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cfe3f5;
+      border-radius: 10px;
+      font-size: 0.8em;
+      font-family: inherit;
+      background: #f7fbfe;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .model-select:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      background: #ffffff;
+    }
+
+    .model-desc {
+      font-size: 0.68em;
+      color: var(--text-sub);
+      line-height: 1.4;
+      margin-top: 6px;
+      min-height: 2.2em;
+    }
+
+    .key-save-btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-blue-soft));
+      color: white;
+      border: none;
+      padding: 9px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.8em;
+      cursor: pointer;
+      box-shadow: 0 4px 10px -3px rgba(2,132,199,0.4);
+      transition: filter 0.15s ease, transform 0.15s ease;
+    }
+
+    .key-save-btn:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+    }
+
+    .header-group {
+      margin-bottom: 44px;
+      padding-top: 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2.7em;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      padding-bottom: 6px;
+      background: linear-gradient(120deg, var(--primary-color) 25%, var(--accent-blue) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--text-sub);
+      margin-top: 10px;
+      font-size: 0.95em;
+      font-weight: 500;
+    }
+
+    .drop-wrapper {
+      display: flex;
+      gap: 18px;
+      justify-content: center;
+      flex-wrap: wrap;
+      align-items: stretch;
+      text-align: left;
+      width: 100%;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 22px;
+      padding: 22px 20px 20px;
+      width: 260px;
+      box-shadow: 0 10px 24px -8px rgba(2,132,199,0.14), 0 3px 8px -3px rgba(2,132,199,0.08);
+      border: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 5px;
+      background: var(--card-accent, var(--accent-blue));
+      border-radius: 22px 22px 0 0;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 18px 34px -10px rgba(2,132,199,0.2), 0 6px 12px -4px rgba(2,132,199,0.12);
+    }
+
+    .drop-zone {
+      border: 2px dashed #bfe0f7;
+      border-radius: 14px;
+      padding: 24px 10px;
+      cursor: pointer;
+      background: #f6fbfe;
+      min-height: 70px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      transition: all 0.2s ease;
+      font-size: 0.9em;
+      color: #547089;
+      text-align: center;
+    }
+
+    .drop-zone.has-file {
+      border-style: solid;
+      background: #f0fdf6;
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+    }
+
+    .drop-zone:hover { border-color: var(--accent-blue); }
+
+    .drop-zone.hover {
+      border-color: var(--accent-blue) !important;
+      background: #dcf0fc !important;
+      border-width: 3px;
+      color: var(--accent-blue) !important;
+    }
+
+    .title {
+      font-weight: 800;
+      font-size: 1.05em;
+      margin-bottom: 12px;
+      display: block;
+      line-height: 1.3;
+    }
+
+    .file-info-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+      min-height: 24px;
+      gap: 8px;
+    }
+
+    .file-info {
+      font-size: 0.78em;
+      font-weight: bold;
+      color: #1e293b;
+      word-break: break-all;
+      text-align: left;
+      flex-grow: 1;
+    }
+
+    .clear-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-size: 0.72em;
+      font-weight: bold;
+      cursor: pointer;
+      display: none;
+      transition: background 0.2s;
+    }
+
+    .clear-btn:hover { background: #dc2626; }
+
+    .prompt-container {
+      margin-top: 12px;
+      text-align: left;
+      width: 100%;
+    }
+
+    .prompt-label {
+      font-size: 0.72em;
+      font-weight: 700;
+      color: var(--text-sub);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .prompt-input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cfe3f5;
+      border-radius: 10px;
+      font-size: 0.78em;
+      font-family: inherit;
+      resize: none;
+      background: #f6fbfe;
+    }
+
+    .prompt-input:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      background: #ffffff;
+    }
+
+    .send-btn {
+      margin-top: 12px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 12px;
+      font-weight: bold;
+      font-size: 0.9em;
+      cursor: pointer;
+      color: white;
+      background-color: #94a8bb;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 10px -3px rgba(2,132,199,0.15);
+    }
+
+    .send-btn.ready-cash { background: linear-gradient(135deg, var(--accent-blue), var(--accent-blue-soft)); }
+    .send-btn.ready-smart_credit { background: linear-gradient(135deg, var(--accent-purple), #818cf8); }
+    .send-btn.ready-credit { background: linear-gradient(135deg, var(--accent-orange), #fbbf24); }
+    .send-btn.ready-pca { background: linear-gradient(135deg, var(--accent-teal), #2dd4bf); }
+
+    .send-btn:disabled {
+      background: #b9c8d6 !important;
+      cursor: not-allowed;
+      opacity: 0.7;
+      box-shadow: none;
+      transform: none !important;
+    }
+
+    .send-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    .status {
+      margin-top: 12px;
+      font-size: 0.8em;
+      min-height: 20px;
+      font-weight: 700;
+    }
+
+    .loading { color: #d97706; animation: blink 1.2s infinite; }
+    .success { color: var(--accent-green); }
+    .error { color: #dc2626; }
+
+    @keyframes blink {
+      0% { opacity: 1; }
+      50% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+
+    .log-card {
+      background: linear-gradient(160deg, #0c2338, #14314f);
+      border: 1px solid #1c3d5c;
+      color: #e2e8f0;
+    }
+
+    .log-card::before { background: var(--accent-blue-soft); }
+
+    .log-header-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .log-clear-btn {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #94a3b8;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 0.72em;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .log-clear-btn:hover { background: rgba(255,255,255,0.16); color: white; }
+
+    .log-container {
+      flex-grow: 1;
+      overflow-y: auto;
+      height: 300px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.7em;
+      line-height: 1.5;
+      text-align: left;
+      padding-right: 5px;
+      background: rgba(0,0,0,0.22);
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .log-item { margin-bottom: 6px; word-break: break-all; }
+    .log-time { color: #64748b; margin-right: 4px; }
+    .log-info { color: #38bdf8; }
+    .log-success { color: #4ade80; }
+    .log-error { color: #f87171; }
+    .log-translate-note { color: #93c5fd; font-style: italic; }
+    .hidden-input { display: none; }
+
+    .preview-section {
+      width: 100%;
+      max-width: 100%;
+      margin: 34px auto 0 auto;
+      background: var(--card-bg);
+      border-radius: 24px;
+      padding: 26px;
+      box-shadow: 0 16px 34px -10px rgba(2,132,199,0.18), 0 6px 14px -6px rgba(2,132,199,0.1);
+      border: 1px solid var(--card-border);
+      text-align: left;
+      display: none;
+    }
+
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .preview-title {
+      font-size: 1.25em;
+      font-weight: 800;
+      color: var(--primary-color);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .preview-active-badge {
+      font-size: 0.75em;
+      font-weight: normal;
+      color: var(--accent-slate);
+      background: #eef6fc;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid #d3e8f7;
+    }
+
+    .preview-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .preview-btn {
+      padding: 10px 18px;
+      font-size: 0.86em;
+      font-weight: bold;
+      border-radius: 12px;
+      cursor: pointer;
+      border: none;
+      transition: filter 0.15s ease, transform 0.1s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preview-btn:active { transform: scale(0.97); }
+    .preview-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .preview-btn-add { background: #e7f1fa; color: #275a80; }
+    .preview-btn-add:hover { background: #d5e9f7; }
+
+    .preview-btn-download {
+      background: linear-gradient(135deg, var(--accent-green), #34d399);
+      color: white;
+    }
+    .preview-btn-download:hover { filter: brightness(1.08); }
+
+    .preview-btn-excel {
+      background: linear-gradient(135deg, #15803d, #22c55e);
+      color: white;
+    }
+    .preview-btn-excel:hover { filter: brightness(1.08); }
+
+    .preview-btn-sheet {
+      background: linear-gradient(135deg, #0f766e, #14b8a6);
+      color: white;
+    }
+    .preview-btn-sheet:hover { filter: brightness(1.08); }
+
+    .preview-notice-box {
+      background-color: #f0f8ff;
+      border: 1px solid #cfe6fb;
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 18px;
+      color: #1e3a5f;
+    }
+
+    .notice-primary { font-size: 0.88em; line-height: 1.6; margin-bottom: 10px; }
+    .notice-primary strong { color: #1d6cc9; }
+
+    .notice-sub-toggle {
+      background: none;
+      border: none;
+      color: var(--accent-blue);
+      font-size: 0.82em;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 4px 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      outline: none;
+    }
+
+    .notice-sub-toggle:hover { text-decoration: underline; }
+
+    .notice-collapsible-content {
+      display: none;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed #cfe6fb;
+      font-size: 0.82em;
+      line-height: 1.6;
+    }
+
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+    }
+
+    .preview-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85em;
+      text-align: left;
+    }
+
+    .preview-table th {
+      background: #eef6fc;
+      color: #345a78;
+      font-weight: 700;
+      padding: 12px;
+      border-bottom: 2px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      white-space: nowrap;
+    }
+
+    .preview-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #eef2f6;
+      color: #1e293b;
+      background: #fff;
+      white-space: nowrap;
+    }
+
+    .preview-table tbody tr:hover td { background: #f5fafd; }
+
+    .cell-editable {
+      cursor: pointer;
+      min-width: 80px;
+      transition: background-color 0.15s;
+    }
+
+    .cell-editable:hover {
+      background-color: #eef6fc !important;
+      outline: 2px solid var(--accent-blue);
+    }
+
+    /* 空欄セル（科目不明）を目立たせる。CSVには空欄のまま出力されます。 */
+    .cell-blank { background-color: #fffbeb !important; }
+
+    .cell-input {
+      width: 100%;
+      padding: 4px 6px;
+      border: 2px solid var(--accent-blue);
+      border-radius: 4px;
+      font-size: inherit;
+      font-family: inherit;
+    }
+
+    .system-header {
+      background-color: #1c3d5c !important;
+      color: #f0f8ff !important;
+      text-align: center !important;
+      font-size: 0.85em;
+    }
+
+    .system-cell { background-color: #eef6fc !important; color: #26445e !important; }
+    .col-separator { border-left: 3px double #a9cbe4 !important; }
+
+    .btn-action-group { display: flex; gap: 4px; justify-content: center; }
+
+    .btn-row-insert {
+      background: #e7f1fa;
+      color: #275a80;
+      border: 1px solid #cfe3f5;
+      padding: 4px 6px;
+      border-radius: 8px;
+      font-size: 0.75em;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn-row-insert:hover { background: #d5e9f7; }
+
+    .btn-row-delete {
+      background: #fee2e2;
+      color: #ef4444;
+      border: 1px solid #fca5a5;
+      padding: 4px 6px;
+      border-radius: 8px;
+      font-size: 0.75em;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn-row-delete:hover { background: #fca5a5; }
+
+    /* 窓5：PCAファイルリスト */
+    .pca-file-list {
+      margin-top: 8px;
+      max-height: 92px;
+      overflow-y: auto;
+      font-size: 0.72em;
+      text-align: left;
+      line-height: 1.5;
+    }
+
+    .pca-file-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 2px 0;
+      border-bottom: 1px dotted #dbeefc;
+    }
+
+    .pca-file-name { word-break: break-all; flex-grow: 1; }
+    .pca-file-state { font-weight: bold; white-space: nowrap; }
+    .pca-state-wait { color: var(--text-sub); }
+    .pca-state-done { color: var(--accent-green); }
+    .pca-state-err  { color: #dc2626; }
+
+    .mode-toggle {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .mode-btn {
+      padding: 9px 16px;
+      border-radius: 12px;
+      border: 1px solid #cfe3f5;
+      background: #f6fbfe;
+      color: #345a78;
+      font-weight: bold;
+      font-size: 0.84em;
+      cursor: pointer;
+    }
+
+    .mode-btn.active {
+      background: linear-gradient(135deg, var(--accent-teal), #2dd4bf);
+      color: white;
+      border-color: transparent;
+    }
+
+    .encoding-select {
+      padding: 9px 12px;
+      border-radius: 12px;
+      border: 1px solid #cfe3f5;
+      background: #f6fbfe;
+      font-size: 0.84em;
+      font-family: inherit;
+      color: var(--text-main);
+    }
+
+    /* マスタ設定パネル */
+    .master-panel {
+      width: 100%;
+      margin: 34px auto 0 auto;
+      background: var(--card-bg);
+      border-radius: 24px;
+      padding: 26px;
+      box-shadow: 0 16px 34px -10px rgba(2,132,199,0.18);
+      border: 1px solid var(--card-border);
+      text-align: left;
+      display: none;
+    }
+
+    .master-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+
+    .master-textarea {
+      width: 100%;
+      min-height: 160px;
+      padding: 12px;
+      border: 1px solid #cfe3f5;
+      border-radius: 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8em;
+      background: #f7fbfe;
+      resize: vertical;
+    }
+
+    .master-hint {
+      font-size: 0.82em;
+      color: var(--text-sub);
+      line-height: 1.7;
+      margin: 10px 0 12px;
+      background: #f0f8ff;
+      border: 1px solid #cfe6fb;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .master-toggle-btn {
+      background: linear-gradient(135deg, #334155, #475569);
+      color: #f1f5f9;
+      border: none;
+      padding: 9px 16px;
+      border-radius: 12px;
+      font-size: 0.8em;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .lock-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(12, 35, 64, 0.5);
+      backdrop-filter: blur(3px);
+      z-index: 9999;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      color: white;
+      font-family: inherit;
+      cursor: not-allowed;
+    }
+
+    .lock-box {
+      background: linear-gradient(160deg, #0c2338, #14314f);
+      padding: 30px 40px;
+      border-radius: 20px;
+      box-shadow: 0 22px 30px -8px rgba(0,0,0,0.35);
+      border: 1px solid #1c3d5c;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .lock-spinner {
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border-left-color: var(--accent-blue-soft);
+      animation: lock-spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    .lock-message { font-size: 1.05em; font-weight: bold; letter-spacing: 0.05em; }
+
+    @keyframes lock-spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .footer {
+      margin-top: 60px;
+      font-size: 0.85em;
+      color: var(--text-sub);
+      font-weight: 500;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="lock-screen" class="lock-screen">
+    <div class="lock-box">
+      <div class="lock-spinner"></div>
+      <div id="lock-message" class="lock-message">処理中です... 少々お待ちください</div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="key-settings-container">
+      <button class="key-toggle-btn" onclick="toggleKeyBox()">🔑 Gemini APIキー設定</button>
+      <div id="key-box" class="key-box">
+        <label class="key-box-label">各自のGemini APIキーを入力:</label>
+        <input type="password" id="user-api-key" class="key-input" placeholder="AIzaSy...">
+        <button class="key-save-btn" onclick="saveApiKey()">キーを保存</button>
+      </div>
+
+      <button class="master-toggle-btn" onclick="MasterPanel.toggle()">⚙ 勘定科目マスタ設定</button>
+
+      <div class="model-standalone-box">
+        <label class="model-select-label">🤖 使用するGeminiモデル</label>
+        <select id="gemini-model-select" class="model-select">
+          <option value="gemini-3.5-flash-lite">3.5 Flash-Lite</option>
+          <option value="gemini-3.6-flash">3.6 Flash</option>
+        </select>
+        <div id="model-desc" class="model-desc"></div>
+      </div>
+
+      <div class="model-standalone-box">
+        <label class="model-select-label">💾 CSVの文字コード</label>
+        <select id="encoding-select" class="model-select">
+          <option value="SJIS">Shift-JIS（弥生・PCAのPC版向け／既定）</option>
+          <option value="UTF8BOM">UTF-8 BOM付き（Excel・スプレッドシート向け）</option>
+        </select>
+        <div class="model-desc">
+          文字化けが出る場合はこちらを切り替えてください。丸数字（①）や機種依存文字はShift-JISに存在しないため、UTF-8を推奨します。
+        </div>
+      </div>
+    </div>
+
+    <div class="header-group">
+      <h1>AI Accounting Converter</h1>
+      <p class="subtitle">V8.00 - 文字化け修正 ／ PCA会計 仕訳変換窓 ／ Excel・スプレッドシート出力対応</p>
+    </div>
+
+    <div class="drop-wrapper">
+      <div class="card" style="--card-accent: var(--accent-blue);">
+        <div>
+          <span class="title" style="color:var(--accent-blue)"> 1. 通帳・現金出納帳<br><small style="font-size:0.75em; font-weight:500;">(スマート取引取込用)</small></span>
+          <div id="drop-cash" class="drop-zone">ファイルをドロップ</div>
+          <div class="file-info-container">
+            <div id="file-info-cash" class="file-info">選択されていません</div>
+            <button id="clear-cash" class="clear-btn">取消</button>
+          </div>
+          <div class="prompt-container">
+            <label class="prompt-label"> AIへの追加指示（任意）</label>
+            <textarea id="prompt-cash" class="prompt-input" rows="2" placeholder="例: 入金のみ抽出して、など"></textarea>
+          </div>
+        </div>
+        <div>
+          <button id="btn-cash" class="send-btn" disabled>スマート取込用CSV出力</button>
+          <div id="status-cash" class="status"></div>
+        </div>
+      </div>
+
+      <div class="card" style="--card-accent: var(--accent-purple);">
+        <div>
+          <span class="title" style="color:var(--accent-purple)"> 2. クレジット明細<br><small style="font-size:0.75em; font-weight:500;">(スマート取引取込用)</small></span>
+          <div id="drop-smart_credit" class="drop-zone">ファイルをドロップ</div>
+          <div class="file-info-container">
+            <div id="file-info-smart_credit" class="file-info">選択されていません</div>
+            <button id="clear-smart_credit" class="clear-btn">取消</button>
+          </div>
+          <div class="prompt-container">
+            <label class="prompt-label"> AIへの追加指示（任意）</label>
+            <textarea id="prompt-smart_credit" class="prompt-input" rows="2" placeholder="例: 特定の店舗を除外、など"></textarea>
+          </div>
+        </div>
+        <div>
+          <button id="btn-smart_credit" class="send-btn" disabled>スマート取込用CSV出力</button>
+          <div id="status-smart_credit" class="status"></div>
+        </div>
+      </div>
+
+      <div class="card" style="--card-accent: var(--accent-orange);">
+        <div>
+          <span class="title" style="color:var(--accent-orange)"> 3. クレジット明細<br><small style="font-size:0.75em; font-weight:500;">(弥生インポート用・前処理)</small></span>
+          <div id="drop-credit" class="drop-zone">ファイルをドロップ</div>
+          <div class="file-info-container">
+            <div id="file-info-credit" class="file-info">選択されていません</div>
+            <button id="clear-credit" class="clear-btn">取消</button>
+          </div>
+          <div class="prompt-container">
+            <label class="prompt-label"> AIへの追加指示（任意）</label>
+            <textarea id="prompt-credit" class="prompt-input" rows="2" placeholder="例: 1月の利用分だけ抽出、など"></textarea>
+          </div>
+        </div>
+        <div>
+          <button id="btn-credit" class="send-btn" disabled>変換用CSV出力</button>
+          <div id="status-credit" class="status"></div>
+        </div>
+      </div>
+
+      <div class="card" style="--card-accent: var(--accent-green); background-color: #fafefc; border: 1px solid #cdf2e0;">
+        <div>
+          <span class="title" style="color:var(--accent-green)"> 4. 弥生仕訳変換窓<br><small style="font-size:0.75em; font-weight:500;">(窓3のファイルをドロップ)</small></span>
+          <div id="drop-yayoi" class="drop-zone" style="border-color: #cdf2e0; background: #ffffff;">変換用CSVをドロップ</div>
+          <div class="file-info-container">
+            <div id="file-info-yayoi" class="file-info">落とすと即時変換されます</div>
+          </div>
+          <div id="status-yayoi" class="status"></div>
+        </div>
+        <div style="font-size: 0.7em; color: var(--text-sub); text-align: left; margin-top: 10px; background: #f0fdf6; padding: 8px; border-radius: 10px; border: 1px solid #dcf7e6; line-height: 1.4;">
+          <strong> 使い方:</strong> 「窓3」で書き出したCSVファイルをここに落とすと、PCデスクトップ版の弥生会計にそのまま取り込める【仕訳インポート用CSV】に一発でダイレクト変換します。
+        </div>
+      </div>
+
+      <div class="card" style="--card-accent: var(--accent-teal); background-color: #fafdfd; border: 1px solid #ccf0ec;">
+        <div>
+          <span class="title" style="color:var(--accent-teal)"> 5. PCA会計 仕訳変換窓<br><small style="font-size:0.75em; font-weight:500;">(請求書・領収書／複数まとめて1CSV)</small></span>
+          <div id="drop-pca" class="drop-zone" style="border-color: #ccf0ec; background: #ffffff;">請求書を何枚でもドロップ</div>
+          <div class="file-info-container">
+            <div id="file-info-pca" class="file-info">選択されていません</div>
+            <button id="clear-pca" class="clear-btn">全消去</button>
+          </div>
+          <div id="pca-file-list" class="pca-file-list"></div>
+          <div class="prompt-container">
+            <label class="prompt-label"> AIへの追加指示（任意）</label>
+            <textarea id="prompt-pca" class="prompt-input" rows="2" placeholder="例: 部門は共通部門で固定、など"></textarea>
+          </div>
+        </div>
+        <div>
+          <button id="btn-pca" class="send-btn" disabled>まとめてAI解析</button>
+          <div id="status-pca" class="status"></div>
+        </div>
+      </div>
+
+      <div class="card log-card">
+        <div>
+          <div class="log-header-box">
+            <span class="title" style="color:#38bdf8; margin-bottom: 0;"> ログ履歴</span>
+            <button id="log-clear" class="log-clear-btn">クリア</button>
+          </div>
+          <div id="log-container" class="log-container">
+            <div class="log-item" style="color: #64748b;">[待機中...]</div>
+          </div>
+        </div>
+        <div style="font-size: 0.7em; color: #94a3b8; text-align: left; margin-top: 10px; line-height: 1.4;">
+          ※画面をリロードするとログは自動クリアされます。エラー発生時は自動で翻訳・要約が追記されます。
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ マスタ設定パネル ============ -->
+    <div id="master-panel" class="master-panel">
+      <div class="preview-header">
+        <div class="preview-title">⚙ 勘定科目マスタ設定</div>
+        <div class="preview-actions">
+          <button class="preview-btn preview-btn-add" onclick="MasterPanel.resetCurrent()">↩ このマスタを初期値に戻す</button>
+          <button class="preview-btn preview-btn-download" onclick="MasterPanel.save()">💾 貼り付け内容を取り込む</button>
+        </div>
+      </div>
+
+      <div class="master-tabs">
+        <button class="mode-btn active" data-master="internalAccounts" onclick="MasterPanel.select('internalAccounts')">社内管理科目（PL（詳細）D〜E列）</button>
+        <button class="mode-btn" data-master="pcaAccounts" onclick="MasterPanel.select('pcaAccounts')">PCA勘定科目（会計事務所用）</button>
+        <button class="mode-btn" data-master="departments" onclick="MasterPanel.select('departments')">部門</button>
+      </div>
+
+      <div id="master-hint" class="master-hint"></div>
+      <textarea id="master-textarea" class="master-textarea" placeholder="Excelの該当列をそのまま選択してコピーし、ここに貼り付けてください（タブ区切り／カンマ区切りのどちらでもOK）"></textarea>
+      <div id="master-status" class="status"></div>
+    </div>
+
+    <!-- ============ 窓1・窓2 プレビュー ============ -->
+    <div id="preview-section" class="preview-section">
+      <div class="preview-header">
+        <div>
+          <div class="preview-title" id="preview-title-text">📊 AI解析結果プレビュー</div>
+        </div>
+        <div class="preview-actions">
+          <button class="preview-btn preview-btn-add" onclick="PreviewController.addRowAtEnd()">➕ 行を追加</button>
+          <button class="preview-btn preview-btn-download" onclick="PreviewController.downloadCsv()">💾 CSVで保存</button>
+          <button class="preview-btn preview-btn-excel" onclick="PreviewController.downloadExcel()">📘 Excelで保存</button>
+          <button class="preview-btn preview-btn-sheet" onclick="PreviewController.openSpreadsheet()">📗 スプレッドシートで開く</button>
+        </div>
+      </div>
+
+      <div class="preview-notice-box">
+        <div class="notice-primary">
+          💡 <strong>日付のズレや読み取りミスが多い場合のアドバイス：</strong><br>
+          1箇所ずつ手作業で直すよりも、上のカードにある<strong>「AIへの追加指示（任意）」</strong>欄に「日付は2026年◯月で読み取って」「1行目をヘッダーにしないで」などと具体的に指示を書き込み、<strong>もう一度ファイルを落とし込んで変換し直す</strong>のが、早くて確実なのでおすすめです！<br>
+          <span style="font-size: 0.9em; color: #475569; display: block; margin-top: 4px;">※ 数件程度の軽微なズレは、以下のセルをダブルクリックすることで、その場でテキストや数値を直接書き換え可能です。読み取り精度が気になる場合は、画面右上のモデル選択を「3.6 Flash」に切り替えるのも有効です。</span>
+        </div>
+
+        <button class="notice-sub-toggle" onclick="toggleLogicDetails()">
+          <span id="toggle-icon">▶</span> 【詳細】残高の自動整合性検証の仕組みを表示する
+        </button>
+
+        <div id="logic-collapsible" class="notice-collapsible-content">
+          🔵 <strong>「残高」列 (CSV出力値)：</strong>
+          1行目の残高を起点に、前行の残高に対して <strong><code>＋ 入金 ── 出金</code></strong> を行った算術的な<strong>「正しい計算値」</strong>を自動生成（CSVへ出力）。<br>
+          ⚙ <strong>「自動検証」列 (画面専用)：</strong>
+          AIが通帳から読み取った元データの数値（読取値）を裏に固定し、上記の「CSV残高（計算値）」と一致しているかを比較。<br>
+          <span style="display: block; margin-top: 4px; color: #1d6cc9; font-weight: bold;">➡️ 「入金」や「出金」をダブルクリックで手修正すると、「CSV残高」が自動再計算され、通帳の印刷数字（読取値）と合致した瞬間「✓一致」に変わります。</span>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="preview-table" id="preview-table">
+          <thead id="preview-thead"></thead>
+          <tbody id="preview-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ============ 窓5 PCAプレビュー ============ -->
+    <div id="pca-section" class="preview-section">
+      <div class="preview-header">
+        <div>
+          <div class="preview-title" id="pca-title-text">🧾 PCA会計 仕訳プレビュー</div>
+        </div>
+        <div class="preview-actions">
+          <button class="preview-btn preview-btn-add" onclick="PcaPreview.addRowAtEnd()">➕ 行を追加</button>
+          <button class="preview-btn preview-btn-download" onclick="PcaPreview.downloadCsv()">💾 CSVで保存</button>
+          <button class="preview-btn preview-btn-excel" onclick="PcaPreview.downloadExcel()">📘 Excelで保存</button>
+          <button class="preview-btn preview-btn-sheet" onclick="PcaPreview.openSpreadsheet()">📗 スプレッドシートで開く</button>
+        </div>
+      </div>
+
+      <div class="mode-toggle">
+        <button id="pca-mode-internal" class="mode-btn active" onclick="PcaPreview.setMode('internal')">🏢 社内用（社内財務管理表 取込）</button>
+        <button id="pca-mode-office" class="mode-btn" onclick="PcaPreview.setMode('office')">🏛 会計事務所用（PCA仕訳インポート）</button>
+      </div>
+
+      <div class="preview-notice-box">
+        <div class="notice-primary">
+          🧾 <strong>複数の請求書をまとめて1つのCSVに出力します。</strong>
+          窓5に何枚でもファイルを落として「まとめてAI解析」を押すと、すべての明細がこの1つの表に蓄積されます。<br>
+          <span style="font-size: 0.9em; color: #475569; display: block; margin-top: 6px;">
+            ⚠ <strong>勘定科目が判定できなかった行は、文字化けではなく「空欄（黄色いセル）」で出力されます。</strong>
+            後から人の手で書き換える前提の仕様です。セルをダブルクリックすればその場で入力できます。<br>
+            ※「社内用」と「会計事務所用」は上のボタンで切り替えられ、それぞれ別のレイアウトで出力されます。
+          </span>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="preview-table" id="pca-table">
+          <thead id="pca-thead"></thead>
+          <tbody id="pca-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer">© 2026 AI Accounting Converter</div>
+  </div>
+
+  <input type="file" id="input-cash" class="hidden-input" accept="image/*,application/pdf">
+  <input type="file" id="input-smart_credit" class="hidden-input" accept="image/*,application/pdf">
+  <input type="file" id="input-credit" class="hidden-input" accept="image/*,application/pdf">
+  <input type="file" id="input-yayoi" class="hidden-input" accept=".csv">
+  <input type="file" id="input-pca" class="hidden-input" accept="image/*,application/pdf" multiple>
+
+  <script>
+    // ==================================================================
+    // Utils：どの窓にも属さない、純粋な共通ユーティリティのみを置く。
+    // 業務ロジック（プロンプトや出力仕様）は一切含めない。
+    // ==================================================================
+    const Utils = {
+      getBaseFileName(filename) {
+        return filename.substring(0, filename.lastIndexOf('.')) || filename;
+      },
+
+      /**
+       * ⚠ 文字化け対策その1：ファイル種別の判定。
+       * V7.00 は file.type が空のとき無条件に image/jpeg として送っていたため、
+       * PDFやHEICを画像として送ってしまい、AIが誤読して文字化けの原因に
+       * なっていました。拡張子から正しいMIMEを決定します。
+       */
+      detectMimeType(file) {
+        const known = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif'];
+        if (file.type && known.indexOf(file.type) !== -1) return file.type;
+
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        const map = {
+          pdf: 'application/pdf',
+          png: 'image/png',
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          webp: 'image/webp',
+          heic: 'image/heic',
+          heif: 'image/heif'
+        };
+        return map[ext] || null;
+      },
+
+      /**
+       * ⚠ 文字化け対策その2：Shift-JISに存在しない文字の正規化。
+       * ①〜⑳、㈱、Ⅰ〜Ⅹ、〜、－ などの機種依存文字はShift-JIS変換時に
+       * 化けるため、変換前に安全な文字へ置き換えます。
+       */
+      normalizeForSjis(text) {
+        let s = String(text);
+        const circled = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳';
+        s = s.replace(/[①-⑳]/g, ch => '(' + (circled.indexOf(ch) + 1) + ')');
+        s = s.replace(/㈱/g, '(株)').replace(/㈲/g, '(有)').replace(/㈹/g, '(代)');
+        s = s.replace(/℡/g, 'TEL').replace(/№/g, 'No.').replace(/㏄/g, 'cc');
+        s = s.replace(/[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]/g, ch => ['I','II','III','IV','V','VI','VII','VIII','IX','X']['ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ'.indexOf(ch)]);
+        s = s.replace(/[～〜]/g, '~');
+        s = s.replace(/[‐‑‒–—―−]/g, '-');
+        s = s.replace(/[’‘]/g, "'").replace(/[”“]/g, '"');
+        // 絵文字などShift-JISに無い記号は除去（残すと1文字ごとに化けるため）
+        s = s.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '');
+        return s;
+      },
+
+      /** CSVをダウンロード。文字コードは画面右上の選択に従う。 */
+      downloadCsv(content, filename) {
+        const useSjis = (document.getElementById('encoding-select').value === 'SJIS');
+        if (useSjis) {
+          const normalized = Utils.normalizeForSjis(content);
+          const unicodeArray = Encoding.stringToCode(normalized);
+          const sjisArray = new Uint8Array(Encoding.convert(unicodeArray, { to: 'SJIS', from: 'UNICODE' }));
+          Utils._saveBlob(new Blob([sjisArray], { type: 'text/csv;charset=shift-jis' }), filename);
+        } else {
+          // UTF-8 BOM付き（Excelで開いても化けない）
+          const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+          Utils._saveBlob(new Blob([bom, content], { type: 'text/csv;charset=utf-8' }), filename);
+        }
+      },
+
+      /** 窓3→窓4の受け渡しは常にShift-JIS（弥生PC版の仕様に合わせる） */
+      downloadAsSjis(content, filename) {
+        const normalized = Utils.normalizeForSjis(content);
+        const unicodeArray = Encoding.stringToCode(normalized);
+        const sjisArray = new Uint8Array(Encoding.convert(unicodeArray, { to: 'SJIS', from: 'UNICODE' }));
+        Utils._saveBlob(new Blob([sjisArray], { type: 'text/csv;charset=shift-jis' }), filename);
+      },
+
+      downloadBase64(base64, filename, mime) {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        Utils._saveBlob(new Blob([bytes], { type: mime }), filename);
+      },
+
+      _saveBlob(blob, filename) {
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      },
+
+      /**
+       * ⚠ 文字化け対策その3：CSVの正しいパース。
+       * V7.00 は line.split(',') だったため、摘要に「,」が入ると
+       * 列が丸ごとズレて内容が壊れていました（画面上は文字化けに見える）。
+       * ダブルクォートで囲まれたカンマ・改行を正しく扱います。
+       */
+      parseCsv(text) {
+        const rows = [];
+        let row = [];
+        let field = '';
+        let inQuotes = false;
+        const s = String(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+        for (let i = 0; i < s.length; i++) {
+          const ch = s[i];
+          if (inQuotes) {
+            if (ch === '"') {
+              if (s[i + 1] === '"') { field += '"'; i++; }
+              else { inQuotes = false; }
+            } else {
+              field += ch;
+            }
+          } else if (ch === '"') {
+            inQuotes = true;
+          } else if (ch === ',') {
+            row.push(field); field = '';
+          } else if (ch === '\n') {
+            row.push(field); field = '';
+            rows.push(row); row = [];
+          } else {
+            field += ch;
+          }
+        }
+        if (field !== '' || row.length > 0) { row.push(field); rows.push(row); }
+        return rows.filter(r => r.some(c => String(c).trim() !== ''));
+      },
+
+      /** 1行分の配列をCSV行文字列へ（サーバー側 CsvUtil と同じルール）。 */
+      csvRow(values) {
+        return (values || []).map(v => {
+          let s = (v === null || v === undefined) ? '' : String(v);
+          s = s.replace(/[\r\n]+/g, ' ').trim();
+          if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1) {
+            return '"' + s.replace(/"/g, '""') + '"';
+          }
+          return s;
+        }).join(',');
+      },
+
+      buildCsv(headers, rows) {
+        const lines = [Utils.csvRow(headers)];
+        rows.forEach(r => lines.push(Utils.csvRow(r)));
+        return lines.join('\n');
+      }
+    };
+
+    function showLockScreen(message) {
+      document.getElementById('lock-message').textContent = message || '処理中です... 少々お待ちください';
+      document.getElementById('lock-screen').style.display = 'flex';
+    }
+
+    function hideLockScreen() {
+      document.getElementById('lock-screen').style.display = 'none';
+    }
+
+    function toggleKeyBox() {
+      const box = document.getElementById('key-box');
+      box.style.display = (box.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function toggleLogicDetails() {
+      const content = document.getElementById('logic-collapsible');
+      const icon = document.getElementById('toggle-icon');
+      if (content.style.display === 'block') {
+        content.style.display = 'none';
+        icon.textContent = '▶';
+      } else {
+        content.style.display = 'block';
+        icon.textContent = '▼';
+      }
+    }
+
+    function saveApiKey() {
+      const key = document.getElementById('user-api-key').value.trim();
+      google.script.run.withSuccessHandler(function() {
+        LogPanel.add('APIキーをスクリプト内に安全に保存しました', 'success');
+        document.getElementById('key-box').style.display = 'none';
+      }).setUserApiKey(key);
+    }
+
+    function clearAllCardStatuses() {
+      ['cash', 'smart_credit', 'credit', 'yayoi', 'pca'].forEach(type => {
+        const statusElem = document.getElementById('status-' + type);
+        if (statusElem) {
+          statusElem.innerText = '';
+          statusElem.className = 'status';
+        }
+      });
+    }
+
+    // ==================================================================
+    // LogPanel：ログ表示専用。エラー発生時は自動でバックエンドに
+    // 翻訳・要約を依頼し、非同期でログ末尾にカッコ書き追記する。
+    // 失敗しても本体機能には一切影響しない。
+    // ==================================================================
+    const LogPanel = {
+      counter: 0,
+      add(message, type = 'info') {
+        const container = document.getElementById('log-container');
+        const timeStr = new Date().toTimeString().split(' ')[0];
+        const id = 'log-entry-' + (this.counter++);
+
+        const item = document.createElement('div');
+        item.id = id;
+        item.className = 'log-item log-' + type;
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'log-time';
+        timeSpan.textContent = '[' + timeStr + ']';
+
+        const textSpan = document.createElement('span');
+        textSpan.className = 'log-text';
+        // textContent を使うことで、ファイル名に含まれる < > & がHTMLとして
+        // 解釈されて表示が壊れる（＝文字化けに見える）のを防ぎます。
+        textSpan.textContent = message;
+
+        item.appendChild(timeSpan);
+        item.appendChild(textSpan);
+        container.appendChild(item);
+        container.scrollTop = container.scrollHeight;
+
+        if (type === 'error') this._attachTranslation(id, message);
+      },
+      _attachTranslation(id, message) {
+        google.script.run
+          .withSuccessHandler(result => {
+            if (!result || (!result.translation && !result.summary)) return;
+            const item = document.getElementById(id);
+            if (!item) return;
+            const note = document.createElement('span');
+            note.className = 'log-translate-note';
+            const parts = [];
+            if (result.translation) parts.push('翻訳: ' + result.translation);
+            if (result.summary) parts.push('要約: ' + result.summary);
+            note.textContent = ' （' + parts.join(' ／ ') + '）';
+            item.querySelector('.log-text').appendChild(note);
+          })
+          .withFailureHandler(() => { /* 翻訳失敗時はサイレントに無視 */ })
+          .translateAndSummarizeLog(String(message));
+      }
+    };
+
+    function addLog(message, type) { LogPanel.add(message, type); }
+
+    document.getElementById('log-clear').addEventListener('click', () => {
+      document.getElementById('log-container').innerHTML = '<div class="log-item" style="color: #64748b;">[クリアされました]</div>';
+    });
+
+    // ==================================================================
+    // ModelSelector：Geminiモデル選択プルダウンの管理専用。
+    // ==================================================================
+    const ModelSelector = {
+      descriptions: {
+        'gemini-3.5-flash-lite': '⚡ 高速で処理コストを抑えた標準モデル。一般的な書類に最適。',
+        'gemini-3.6-flash': '🔍 高精度モデル。かすれ文字や複雑なレイアウトの解析向き。'
+      },
+      init() {
+        this.select = document.getElementById('gemini-model-select');
+        this.desc = document.getElementById('model-desc');
+        const saved = localStorage.getItem('gemini_model_choice');
+        this.select.value = (saved && this.descriptions[saved]) ? saved : 'gemini-3.5-flash-lite';
+        this._updateDesc();
+        this.select.addEventListener('change', () => {
+          localStorage.setItem('gemini_model_choice', this.select.value);
+          this._updateDesc();
+        });
+      },
+      _updateDesc() {
+        this.desc.textContent = this.descriptions[this.select.value] || '';
+      },
+      get current() { return this.select.value; }
+    };
+
+    // ==================================================================
+    // EncodingSelector：CSV文字コード選択の保存・復元
+    // ==================================================================
+    const EncodingSelector = {
+      init() {
+        this.select = document.getElementById('encoding-select');
+        const saved = localStorage.getItem('csv_encoding_choice');
+        if (saved === 'SJIS' || saved === 'UTF8BOM') this.select.value = saved;
+        this.select.addEventListener('change', () => {
+          localStorage.setItem('csv_encoding_choice', this.select.value);
+          LogPanel.add('CSVの文字コードを ' + this.select.options[this.select.selectedIndex].text + ' に変更しました', 'info');
+        });
+      }
+    };
+
+    // ==================================================================
+    // Exporter：Excel／スプレッドシート出力の共通処理。
+    // 表データ（headers, rows）を渡すだけでどちらの形式にも出せます。
+    // ==================================================================
+    const Exporter = {
+      toExcel(fileName, sheets) {
+        showLockScreen('Excelファイルを生成中です...');
+        google.script.run
+          .withSuccessHandler(res => {
+            hideLockScreen();
+            if (!res || !res.base64) {
+              LogPanel.add('Excel出力に失敗しました（応答が空です）', 'error');
+              return;
+            }
+            Utils.downloadBase64(
+              res.base64,
+              res.fileName,
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            );
+            LogPanel.add('Excelで保存しました: [' + res.fileName + ']', 'success');
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            LogPanel.add('Excel出力エラー: ' + err, 'error');
+          })
+          .exportToExcel({ fileName: fileName, sheets: sheets });
+      },
+
+      toSpreadsheet(fileName, sheets) {
+        showLockScreen('Googleスプレッドシートを作成中です...');
+        google.script.run
+          .withSuccessHandler(res => {
+            hideLockScreen();
+            if (!res || !res.url) {
+              LogPanel.add('スプレッドシート出力に失敗しました（応答が空です）', 'error');
+              return;
+            }
+            window.open(res.url, '_blank');
+            LogPanel.add('スプレッドシートを作成しました: ' + res.name + ' → ' + res.url, 'success');
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            LogPanel.add('スプレッドシート出力エラー: ' + err, 'error');
+          })
+          .exportToSpreadsheet({ fileName: fileName, sheets: sheets });
+      }
+    };
+
+    // ==================================================================
+    // MasterPanel：勘定科目マスタの貼り付け設定パネル
+    // ==================================================================
+    const MasterPanel = {
+      current: 'internalAccounts',
+      masters: null,
+
+      hints: {
+        internalAccounts:
+          '<strong>社内財務管理表「PL（詳細）」シートの D列（大分類）〜 E列（小分類）</strong>をそのまま選択してコピーし、下に貼り付けてください。<br>' +
+          '3列目に対応する<strong>PCA勘定科目コード</strong>（例: 752）を足しておくと、会計事務所用CSVへの変換まで自動化されます。3列目が空の行は、会計事務所用CSVでは科目欄が<strong>空欄</strong>で出力されます。<br>' +
+          '<span style="color:#475569;">例：<code>販管費[Tab]消耗品費[Tab]752</code></span>',
+        pcaAccounts:
+          '<strong>PCA会計の勘定科目マスタ</strong>を「コード / 科目名 / 大分類」の順で貼り付けてください。<br>' +
+          '<span style="color:#475569;">例：<code>752[Tab]消耗品費[Tab]販管費</code></span><br>' +
+          '※ 勘定科目設定Excelを使う場合は、<strong>グレーアウトされた行を削除してから</strong>コピーしてください（グレーアウト行はここに入れない＝使用しない、という運用になります）。',
+        departments:
+          '<strong>部門マスタ</strong>を「部門コード / 部門名」の順で貼り付けてください。<br>' +
+          '<span style="color:#475569;">例：<code>0[Tab]共通部門</code></span>'
+      },
+
+      toggle() {
+        const panel = document.getElementById('master-panel');
+        const isOpen = panel.style.display === 'block';
+        panel.style.display = isOpen ? 'none' : 'block';
+        if (!isOpen) {
+          this.select(this.current);
+          panel.scrollIntoView({ behavior: 'smooth' });
+        }
+      },
+
+      select(name) {
+        this.current = name;
+        document.querySelectorAll('.master-tabs .mode-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.master === name);
+        });
+        document.getElementById('master-hint').innerHTML = this.hints[name] || '';
+        document.getElementById('master-textarea').value = this._toText(name);
+        this._setStatus('', '');
+      },
+
+      _toText(name) {
+        const data = (this.masters || {})[name] || [];
+        if (name === 'internalAccounts') {
+          return data.map(a => [a.major, a.minor, a.pcaCode || ''].join('\t')).join('\n');
+        }
+        if (name === 'pcaAccounts') {
+          return data.map(a => [a.code, a.name, a.major || ''].join('\t')).join('\n');
+        }
+        if (name === 'departments') {
+          return data.map(d => [d.code, d.name].join('\t')).join('\n');
+        }
+        return '';
+      },
+
+      _setStatus(msg, type) {
+        const el = document.getElementById('master-status');
+        el.textContent = msg;
+        el.className = 'status' + (type ? ' ' + type : '');
+      },
+
+      save() {
+        const text = document.getElementById('master-textarea').value;
+        if (!text.trim()) {
+          this._setStatus('貼り付け内容が空です。', 'error');
+          return;
+        }
+        const fnName = {
+          internalAccounts: 'importInternalAccounts',
+          pcaAccounts: 'importPcaAccounts',
+          departments: 'importDepartments'
+        }[this.current];
+
+        showLockScreen('マスタを取り込んでいます...');
+        google.script.run
+          .withSuccessHandler(res => {
+            hideLockScreen();
+            let msg = res.count + ' 件を取り込みました。';
+            if (res.unlinked) msg += '（うち ' + res.unlinked + ' 件はPCA科目コード未設定 → 会計事務所用CSVでは空欄になります）';
+            this._setStatus(msg, 'success');
+            LogPanel.add('マスタ取り込み: ' + msg, 'success');
+            this.reload();
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            this._setStatus('取り込み失敗: ' + err, 'error');
+            LogPanel.add('マスタ取り込みエラー: ' + err, 'error');
+          })[fnName](text);
+      },
+
+      resetCurrent() {
+        showLockScreen('初期値に戻しています...');
+        google.script.run
+          .withSuccessHandler(masters => {
+            hideLockScreen();
+            this.masters = masters;
+            this.select(this.current);
+            this._setStatus('初期値に戻しました。', 'success');
+            LogPanel.add('マスタを初期値に戻しました: ' + this.current, 'info');
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            this._setStatus('リセット失敗: ' + err, 'error');
+          })
+          .resetMaster(this.current);
+      },
+
+      reload() {
+        google.script.run
+          .withSuccessHandler(masters => {
+            this.masters = masters;
+            if (document.getElementById('master-panel').style.display === 'block') {
+              document.getElementById('master-textarea').value = this._toText(this.current);
+            }
+          })
+          .withFailureHandler(() => { /* マスタ取得失敗時も本体は動作継続 */ })
+          .getMasters();
+      }
+    };
+
+    // ==================================================================
+    // TableEditor：プレビュー表の共通編集機能（窓1・窓2・窓5で共有）。
+    // 「どのデータを表示するか」は各コントローラーが持ち、
+    // ここは描画とセル編集だけを担当します。
+    // ==================================================================
+    const TableEditor = {
+      /**
+       * @param opts.thead / opts.tbody  … 描画先のDOM ID
+       * @param opts.headers / opts.rows … 表データ
+       * @param opts.onEdit(rowIdx, colIdx, value) … セル確定時のコールバック
+       * @param opts.onRowAction(action, rowIdx)   … 行操作のコールバック
+       * @param opts.decorate(tr, row, rowIdx)     … 行ごとの追加描画（任意）
+       * @param opts.extraHeader                   … 検証列などの追加ヘッダ（任意）
+       */
+      render(opts) {
+        const thead = document.getElementById(opts.thead);
+        const tbody = document.getElementById(opts.tbody);
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+
+        const headerRow = document.createElement('tr');
+        opts.headers.forEach(name => {
+          const th = document.createElement('th');
+          th.textContent = name;
+          headerRow.appendChild(th);
+        });
+
+        if (opts.extraHeader) {
+          const thExtra = document.createElement('th');
+          thExtra.innerHTML = opts.extraHeader;
+          thExtra.className = 'system-header col-separator';
+          headerRow.appendChild(thExtra);
+        }
+
+        const thAction = document.createElement('th');
+        thAction.innerHTML = '⚙ 行操作<br><small style="font-size:0.8em; font-weight:normal;">(画面専用・CSV除外)</small>';
+        thAction.className = 'system-header';
+        if (!opts.extraHeader) thAction.className += ' col-separator';
+        thAction.style.width = '180px';
+        headerRow.appendChild(thAction);
+        thead.appendChild(headerRow);
+
+        opts.rows.forEach((row, rIdx) => {
+          const tr = document.createElement('tr');
+
+          for (let cIdx = 0; cIdx < opts.headers.length; cIdx++) {
+            const value = row[cIdx];
+            const td = document.createElement('td');
+            td.className = 'cell-editable';
+            const text = (value === null || value === undefined) ? '' : String(value);
+            td.textContent = text;
+            // 空欄（＝科目が判定できなかった箇所）を色で示す。CSVには空欄のまま出ます。
+            if (text === '') td.classList.add('cell-blank');
+
+            td.addEventListener('dblclick', () => {
+              if (td.querySelector('input')) return;
+              const input = document.createElement('input');
+              input.type = 'text';
+              input.className = 'cell-input';
+              input.value = td.textContent;
+
+              input.addEventListener('blur', () => {
+                const val = input.value.trim();
+                td.textContent = val;
+                opts.onEdit(rIdx, cIdx, val);
+              });
+              input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') input.blur();
+              });
+
+              td.textContent = '';
+              td.appendChild(input);
+              input.focus();
+            });
+            tr.appendChild(td);
+          }
+
+          if (opts.decorate) opts.decorate(tr, row, rIdx);
+
+          const tdAction = document.createElement('td');
+          tdAction.className = 'system-cell';
+          if (!opts.extraHeader) tdAction.className += ' col-separator';
+          tdAction.style.textAlign = 'center';
+
+          const group = document.createElement('div');
+          group.className = 'btn-action-group';
+          [
+            ['↑挿入', 'btn-row-insert', () => opts.onRowAction('insertAbove', rIdx)],
+            ['↓挿入', 'btn-row-insert', () => opts.onRowAction('insertBelow', rIdx)],
+            ['削除', 'btn-row-delete', () => opts.onRowAction('delete', rIdx)]
+          ].forEach(([label, cls, handler]) => {
+            const b = document.createElement('button');
+            b.className = cls;
+            b.textContent = label;
+            b.onclick = handler;
+            group.appendChild(b);
+          });
+
+          tdAction.appendChild(group);
+          tr.appendChild(tdAction);
+          tbody.appendChild(tr);
+        });
+      }
+    };
+
+    // ==================================================================
+    // PreviewController：窓1・窓2共通のプレビュー表示。
+    // 残高の自動再計算ロジックは V7.00 と同一です。
+    // ==================================================================
+    const PreviewController = {
+      data: { headers: [], rows: [], fileType: '', fileName: '' },
+
+      load(csvContent, fileType, originalFileName) {
+        // ⚠ 文字化け対策：split(',') ではなく、クォート対応のCSVパーサを使用
+        const table = Utils.parseCsv(csvContent);
+        if (table.length === 0) return;
+
+        this.data = {
+          headers: table[0],
+          rows: table.slice(1),
+          fileType: fileType,
+          fileName: originalFileName
+        };
+
+        const windowNames = { cash: '窓1(スマート通帳)', smart_credit: '窓2(スマートクレカ)' };
+        const friendly = windowNames[fileType] || 'ファイル';
+        const badge = document.createElement('span');
+        badge.className = 'preview-active-badge';
+        badge.textContent = 'アクティブ: ' + friendly + ' [ ' + originalFileName + ' ]';
+        const titleEl = document.getElementById('preview-title-text');
+        titleEl.textContent = '📊 AI解析結果プレビュー ';
+        titleEl.appendChild(badge);
+
+        this.render();
+        const section = document.getElementById('preview-section');
+        section.style.display = 'block';
+        section.scrollIntoView({ behavior: 'smooth' });
+      },
+
+      render() {
+        const headers = this.data.headers;
+        const hasBalanceCol = headers.indexOf('残高') !== -1;
+        const inIdx = headers.indexOf('入金');
+        const outIdx = headers.indexOf('出金');
+        const balIdx = headers.indexOf('残高');
+        let dateIdx = -1;
+        headers.forEach((h, i) => { if (h.indexOf('日') !== -1 && dateIdx === -1) dateIdx = i; });
+
+        let runningBalance = null;
+        let isFirstValidRow = true;
+        const balanceState = [];
+
+        this.data.rows.forEach(row => {
+          // 和暦2桁が残っていた場合の西暦補正（V7.00と同一ロジック）
+          if (dateIdx !== -1 && row[dateIdx]) {
+            const parts = String(row[dateIdx]).trim().split(/[-/]/);
+            if (parts.length === 3 && parts[0].length <= 2) {
+              const yearNum = parseInt(parts[0], 10);
+              if (yearNum === 6) parts[0] = '2024';
+              else if (yearNum === 7) parts[0] = '2025';
+              else if (yearNum === 8) parts[0] = '2026';
+              row[dateIdx] = parts.join('/');
+            }
+          }
+
+          if (row.ocrBalance === undefined) {
+            row.ocrBalance = parseInt(String(row[balIdx] || '').replace(/[^-0-9]/g, ''), 10);
+          }
+
+          const isRowEmpty = row.every(cell => typeof cell === 'string' && cell.trim() === '');
+          const valIn = parseInt(String(row[inIdx] || '').replace(/[^-0-9]/g, ''), 10) || 0;
+          const valOut = parseInt(String(row[outIdx] || '').replace(/[^-0-9]/g, ''), 10) || 0;
+
+          if (hasBalanceCol && !isRowEmpty) {
+            if (isFirstValidRow) {
+              runningBalance = parseInt(String(row[balIdx] || '').replace(/[^-0-9]/g, ''), 10) || 0;
+              isFirstValidRow = false;
+            } else {
+              runningBalance = runningBalance + valIn - valOut;
+              row[balIdx] = runningBalance;
+            }
+          }
+          balanceState.push({ empty: isRowEmpty, running: runningBalance, ocr: row.ocrBalance });
+        });
+
+        TableEditor.render({
+          thead: 'preview-thead',
+          tbody: 'preview-tbody',
+          headers: headers,
+          rows: this.data.rows,
+          extraHeader: hasBalanceCol
+            ? '⚙ 自動検証<br><small style="font-size:0.8em; font-weight:normal;">(通帳読取値・CSV除外)</small>'
+            : null,
+          decorate: hasBalanceCol ? (tr, row, rIdx) => {
+            const st = balanceState[rIdx];
+            const td = document.createElement('td');
+            td.className = 'system-cell col-separator';
+            if (st.empty) {
+              td.innerHTML = '<span style="color: #94a3b8; font-size: 0.9em;">(空行スキップ)</span>';
+            } else if (isNaN(st.ocr)) {
+              td.innerHTML = '<span style="color: #64748b;">-</span>';
+            } else {
+              const diff = st.running - st.ocr;
+              td.innerHTML = (diff === 0)
+                ? '<span style="color: #10b981; font-weight: bold;">✓ 読取値と一致 (' + st.ocr.toLocaleString() + ')</span>'
+                : '<span style="color: #dc2626; font-weight: bold; background-color: #fee2e2; padding: 4px 8px; border-radius: 6px; display: inline-block;">⚠ 読取値と不一致<br><small style="font-size:0.9em; font-weight:normal;">読取値:' + st.ocr.toLocaleString() + '<br>差額:' + diff.toLocaleString() + '</small></span>';
+            }
+            tr.appendChild(td);
+          } : null,
+          onEdit: (rIdx, cIdx, val) => {
+            this.data.rows[rIdx][cIdx] = val;
+            this.render();
+          },
+          onRowAction: (action, rIdx) => {
+            if (action === 'insertAbove') this.addRowAt(rIdx);
+            else if (action === 'insertBelow') this.addRowAt(rIdx + 1);
+            else if (action === 'delete') this.removeRow(rIdx);
+          }
+        });
+      },
+
+      addRowAt(position) {
+        if (!this.data.headers.length) return;
+        this.data.rows.splice(position, 0, Array(this.data.headers.length).fill(''));
+        this.render();
+        LogPanel.add('プレビューの ' + (position + 1) + ' 行目に新しい行を挿入しました。', 'info');
+      },
+
+      addRowAtEnd() {
+        if (!this.data.headers.length) return;
+        this.data.rows.push(Array(this.data.headers.length).fill(''));
+        this.render();
+        LogPanel.add('プレビューの末尾に新しい空白行を追加しました。', 'info');
+      },
+
+      removeRow(index) {
+        this.data.rows.splice(index, 1);
+        this.render();
+        LogPanel.add('行 ' + (index + 1) + ' を削除しました。', 'info');
+      },
+
+      _suffix() {
+        return this.data.fileType === 'smart_credit'
+          ? '_スマート取込用_クレカ'
+          : '_スマート取込用_通帳現金';
+      },
+
+      _baseName() {
+        return Utils.getBaseFileName(this.data.fileName || 'output') + this._suffix();
+      },
+
+      _cleanRows() {
+        // 画面専用に付けた ocrBalance プロパティは出力に含めない
+        return this.data.rows.map(r => this.data.headers.map((_, i) => r[i] === undefined ? '' : r[i]));
+      },
+
+      downloadCsv() {
+        if (!this.data.headers.length) return;
+        const csv = Utils.buildCsv(this.data.headers, this._cleanRows());
+        const name = this._baseName() + '.csv';
+        Utils.downloadCsv(csv, name);
+        LogPanel.add('編集された内容で保存しました: [' + name + ']', 'success');
+      },
+
+      downloadExcel() {
+        if (!this.data.headers.length) return;
+        Exporter.toExcel(this._baseName(), [{
+          name: '取込データ', headers: this.data.headers, rows: this._cleanRows()
+        }]);
+      },
+
+      openSpreadsheet() {
+        if (!this.data.headers.length) return;
+        Exporter.toSpreadsheet(this._baseName(), [{
+          name: '取込データ', headers: this.data.headers, rows: this._cleanRows()
+        }]);
+      }
+    };
+
+    // ==================================================================
+    // PcaPreview：窓5専用のプレビュー・出力。
+    // 複数ファイル分の明細を蓄積し、社内用／会計事務所用を切り替えて
+    // 1つのCSV・Excel・スプレッドシートに出力します。
+    // ==================================================================
+    const PcaPreview = {
+      entries: [],          // サーバーから返った正規化済み明細（全ファイル分）
+      mode: 'internal',
+      table: { headers: [], rows: [] },
+
+      setMode(mode) {
+        this.mode = mode;
+        document.getElementById('pca-mode-internal').classList.toggle('active', mode === 'internal');
+        document.getElementById('pca-mode-office').classList.toggle('active', mode === 'office');
+        this.rebuild();
+      },
+
+      addEntries(newEntries) {
+        if (!newEntries || !newEntries.length) return;
+        this.entries = this.entries.concat(newEntries);
+        this.rebuild();
+      },
+
+      clear() {
+        this.entries = [];
+        this.table = { headers: [], rows: [] };
+        document.getElementById('pca-section').style.display = 'none';
+      },
+
+      /** サーバーにCSV組み立てを依頼し、返ってきた表を描画する。 */
+      rebuild() {
+        if (!this.entries.length) {
+          document.getElementById('pca-section').style.display = 'none';
+          return;
+        }
+        showLockScreen('仕訳データを組み立てています...');
+        google.script.run
+          .withSuccessHandler(res => {
+            hideLockScreen();
+            this.table = { headers: res.headers, rows: res.rows };
+            this.render();
+            const section = document.getElementById('pca-section');
+            section.style.display = 'block';
+            section.scrollIntoView({ behavior: 'smooth' });
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            LogPanel.add('窓5(PCA仕訳) 組み立てエラー: ' + err, 'error');
+          })
+          .buildPcaCsv(this.entries, this.mode);
+      },
+
+      render() {
+        const blanks = this.table.rows.reduce((acc, row) => {
+          const accIdx = this.table.headers.indexOf('借方科目コード');
+          return acc + ((accIdx !== -1 && String(row[accIdx] || '') === '') ? 1 : 0);
+        }, 0);
+
+        const label = (this.mode === 'office') ? '会計事務所用（PCA仕訳インポート）' : '社内用（社内財務管理表 取込）';
+        const badge = document.createElement('span');
+        badge.className = 'preview-active-badge';
+        badge.textContent = label + ' ／ ' + this.entries.length + ' 明細 → ' + this.table.rows.length + ' 行'
+          + (blanks ? ' ／ 科目未確定 ' + blanks + ' 行（空欄）' : '');
+        const titleEl = document.getElementById('pca-title-text');
+        titleEl.textContent = '🧾 PCA会計 仕訳プレビュー ';
+        titleEl.appendChild(badge);
+
+        TableEditor.render({
+          thead: 'pca-thead',
+          tbody: 'pca-tbody',
+          headers: this.table.headers,
+          rows: this.table.rows,
+          onEdit: (rIdx, cIdx, val) => { this.table.rows[rIdx][cIdx] = val; },
+          onRowAction: (action, rIdx) => {
+            if (action === 'insertAbove') this.table.rows.splice(rIdx, 0, Array(this.table.headers.length).fill(''));
+            else if (action === 'insertBelow') this.table.rows.splice(rIdx + 1, 0, Array(this.table.headers.length).fill(''));
+            else if (action === 'delete') this.table.rows.splice(rIdx, 1);
+            this.render();
+          }
+        });
+      },
+
+      addRowAtEnd() {
+        if (!this.table.headers.length) return;
+        this.table.rows.push(Array(this.table.headers.length).fill(''));
+        this.render();
+      },
+
+      _baseName() {
+        const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        return (this.mode === 'office' ? 'PCA仕訳_会計事務所用_' : 'PCA仕訳_社内用_') + stamp;
+      },
+
+      downloadCsv() {
+        if (!this.table.headers.length) return;
+        const csv = Utils.buildCsv(this.table.headers, this.table.rows);
+        const name = this._baseName() + '.csv';
+        Utils.downloadCsv(csv, name);
+        LogPanel.add('窓5(PCA仕訳) CSV出力 [' + name + '] (' + this.table.rows.length + '行)', 'success');
+      },
+
+      downloadExcel() {
+        if (!this.table.headers.length) return;
+        Exporter.toExcel(this._baseName(), [{
+          name: (this.mode === 'office' ? '会計事務所用' : '社内用'),
+          headers: this.table.headers,
+          rows: this.table.rows
+        }]);
+      },
+
+      openSpreadsheet() {
+        if (!this.table.headers.length) return;
+        Exporter.toSpreadsheet(this._baseName(), [{
+          name: (this.mode === 'office' ? '会計事務所用' : '社内用'),
+          headers: this.table.headers,
+          rows: this.table.rows
+        }]);
+      }
+    };
+
+    // ==================================================================
+    // AiExtractionWindow：窓1・窓2・窓3で共通の「ファイル選択→AI解析→
+    // 結果を受け取る」骨組み。プロンプト内容や出力フォーマットは
+    // Code.gs 側の各窓クラスが担当するため、ここには一切含めない。
+    // ==================================================================
+    class AiExtractionWindow {
+      constructor({ type, gasFunctionName, label, isPreviewType }) {
+        this.type = type;
+        this.gasFunctionName = gasFunctionName;
+        this.label = label;
+        this.isPreviewType = isPreviewType;
+        this.selectedFile = null;
+
+        this.zone = document.getElementById('drop-' + type);
+        this.fileInput = document.getElementById('input-' + type);
+        this.infoElem = document.getElementById('file-info-' + type);
+        this.btn = document.getElementById('btn-' + type);
+        this.clearBtn = document.getElementById('clear-' + type);
+        this.statusElem = document.getElementById('status-' + type);
+        this.promptElem = document.getElementById('prompt-' + type);
+
+        this._bindEvents();
+      }
+
+      _bindEvents() {
+        const zone = this.zone;
+        ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => {
+          e.preventDefault();
+          zone.classList.add('hover');
+        }));
+        ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
+          e.preventDefault();
+          zone.classList.remove('hover');
+          if (ev === 'drop') this.handleFileSelect(e.dataTransfer.files[0]);
+        }));
+        zone.addEventListener('click', () => this.fileInput.click());
+        this.fileInput.addEventListener('change', e => this.handleFileSelect(e.target.files[0]));
+        if (this.clearBtn) {
+          this.clearBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            this.clearFileSelection();
+          });
+        }
+        this.btn.addEventListener('click', () => this.execute());
+      }
+
+      handleFileSelect(file) {
+        if (!file) return;
+
+        // ⚠ 文字化け対策：非対応形式を先に弾く。
+        // ExcelやCSVを画像として送ると、AIがバイナリを誤読して
+        // 意味不明な文字列（＝文字化け）を返していました。
+        if (!Utils.detectMimeType(file)) {
+          this.statusElem.innerText = '非対応の形式です';
+          this.statusElem.className = 'status error';
+          LogPanel.add(this.label + ' 非対応の形式です: ' + file.name + '（PDF・PNG・JPEG・WEBP・HEICのみ対応。ExcelやCSVはPDF化してからお試しください）', 'error');
+          return;
+        }
+
+        this.selectedFile = file;
+        this.zone.classList.add('has-file');
+        this.zone.innerText = '📁 ファイル変更';
+        this.infoElem.innerText = '選択中: ' + file.name + ' ( ' + (file.size / 1024).toFixed(1) + ' KB)';
+
+        LogPanel.add(this.label + ' 選択完了: ' + file.name, 'info');
+        if (this.clearBtn) this.clearBtn.style.display = 'inline-block';
+
+        this.btn.disabled = false;
+        this.btn.classList.add('ready-' + this.type);
+      }
+
+      clearFileSelection() {
+        const oldFileName = this.selectedFile ? this.selectedFile.name : '';
+        this.selectedFile = null;
+        this.fileInput.value = '';
+
+        this.zone.classList.remove('has-file');
+        this.zone.innerText = 'ファイルをドロップ';
+        this.infoElem.innerText = '選択されていません';
+        this.clearBtn.style.display = 'none';
+
+        this.btn.disabled = true;
+        this.btn.classList.remove('ready-' + this.type);
+
+        this.statusElem.innerText = '';
+        LogPanel.add(this.label + ' 取消: ' + oldFileName, 'info');
+      }
+
+      execute() {
+        const file = this.selectedFile;
+        if (!file) return;
+
+        clearAllCardStatuses();
+        if (this.clearBtn) this.clearBtn.style.display = 'none';
+
+        const userPrompt = this.promptElem ? this.promptElem.value.trim() : '';
+        const modelName = ModelSelector.current;
+
+        this.statusElem.innerText = 'AI解析中...';
+        this.statusElem.className = 'status loading';
+        this.btn.disabled = true;
+
+        let logMsg = this.label + ' 解析開始... [' + file.name + '] / モデル: ' + modelName;
+        if (userPrompt) logMsg += ' ユーザー指示: "' + userPrompt + '"';
+        LogPanel.add(logMsg, 'info');
+
+        if (this.isPreviewType) showLockScreen(this.label + 'がファイルを解析中');
+
+        const reader = new FileReader();
+        reader.onerror = () => {
+          this._onFailure('ファイルの読み込みに失敗しました');
+        };
+        reader.onload = e => {
+          const base64 = e.target.result.split(',')[1];
+          const mime = Utils.detectMimeType(file);
+
+          google.script.run
+            .withSuccessHandler(result => this._onSuccess(result, file))
+            .withFailureHandler(err => this._onFailure(err))
+            [this.gasFunctionName](base64, mime, userPrompt, modelName);
+        };
+        reader.readAsDataURL(file);
+      }
+
+      _onSuccess(result, file) {
+        if (!this.isPreviewType) {
+          // ⚡ 窓3: ver1仕様（プレビューなし、直接Shift-JISでCSVダウンロード）
+          const downloadName = Utils.getBaseFileName(file.name) + '_弥生変換用_クレカ.csv';
+          Utils.downloadAsSjis(result, downloadName);
+
+          this.statusElem.innerText = '完了！';
+          this.statusElem.className = 'status success';
+          this.btn.disabled = false;
+          if (this.clearBtn) this.clearBtn.style.display = 'inline-block';
+
+          const lineCount = result.split('\n').filter(l => l.trim() !== '').length - 1;
+          LogPanel.add(this.label + ' 成功！ CSV出力 [' + downloadName + '] (' + lineCount + '件)', 'success');
+        } else {
+          // ⚡ 窓1・窓2: プレビュー画面表示＆補正
+          this.statusElem.innerText = 'プレビュー表示中！';
+          this.statusElem.className = 'status success';
+          this.btn.disabled = false;
+          if (this.clearBtn) this.clearBtn.style.display = 'inline-block';
+
+          PreviewController.load(result.csv, this.type, file.name);
+          LogPanel.add(this.label + ' 成功！指示通りの補正を適用したプレビューを生成しました。', 'success');
+          hideLockScreen();
+        }
+      }
+
+      _onFailure(err) {
+        this.statusElem.innerText = 'エラー: ' + err;
+        this.statusElem.className = 'status error';
+        this.btn.disabled = false;
+        if (this.clearBtn) this.clearBtn.style.display = 'inline-block';
+
+        LogPanel.add(this.label + ' エラー: ' + err, 'error');
+        if (this.isPreviewType) hideLockScreen();
+      }
+    }
+
+    // ==================================================================
+    // PcaWindowController：窓5専用。複数ファイルを順番にAI解析し、
+    // 結果を PcaPreview に蓄積していきます（複数データ → 1CSV）。
+    // 窓1〜窓4のクラスには一切依存せず、影響も与えません。
+    // ==================================================================
+    class PcaWindowController {
+      constructor() {
+        this.files = [];        // { file, state: 'wait'|'done'|'err', message }
+        this.zone = document.getElementById('drop-pca');
+        this.fileInput = document.getElementById('input-pca');
+        this.infoElem = document.getElementById('file-info-pca');
+        this.listElem = document.getElementById('pca-file-list');
+        this.btn = document.getElementById('btn-pca');
+        this.clearBtn = document.getElementById('clear-pca');
+        this.statusElem = document.getElementById('status-pca');
+        this.promptElem = document.getElementById('prompt-pca');
+        this._bindEvents();
+      }
+
+      _bindEvents() {
+        const zone = this.zone;
+        ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => {
+          e.preventDefault();
+          zone.classList.add('hover');
+        }));
+        ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
+          e.preventDefault();
+          zone.classList.remove('hover');
+          if (ev === 'drop') this.addFiles(e.dataTransfer.files);
+        }));
+        zone.addEventListener('click', () => this.fileInput.click());
+        this.fileInput.addEventListener('change', e => this.addFiles(e.target.files));
+        this.clearBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          this.clearAll();
+        });
+        this.btn.addEventListener('click', () => this.executeAll());
+      }
+
+      addFiles(fileList) {
+        const incoming = Array.prototype.slice.call(fileList || []);
+        let added = 0;
+        incoming.forEach(file => {
+          if (!Utils.detectMimeType(file)) {
+            LogPanel.add('窓5(PCA仕訳) 非対応の形式のためスキップ: ' + file.name + '（PDF・PNG・JPEG・WEBP・HEICのみ対応）', 'error');
+            return;
+          }
+          this.files.push({ file: file, state: 'wait', message: '未処理' });
+          added++;
+        });
+
+        if (added > 0) {
+          this.zone.classList.add('has-file');
+          this.zone.innerText = '📁 さらに追加できます';
+          LogPanel.add('窓5(PCA仕訳) ' + added + ' 件を追加しました（合計 ' + this.files.length + ' 件）', 'info');
+        }
+        this._renderList();
+      }
+
+      clearAll() {
+        this.files = [];
+        this.fileInput.value = '';
+        this.zone.classList.remove('has-file');
+        this.zone.innerText = '請求書を何枚でもドロップ';
+        this.statusElem.innerText = '';
+        this.statusElem.className = 'status';
+        PcaPreview.clear();
+        this._renderList();
+        LogPanel.add('窓5(PCA仕訳) ファイルと蓄積済み明細をすべて消去しました', 'info');
+      }
+
+      _renderList() {
+        this.listElem.innerHTML = '';
+        this.files.forEach(item => {
+          const row = document.createElement('div');
+          row.className = 'pca-file-row';
+
+          const name = document.createElement('span');
+          name.className = 'pca-file-name';
+          name.textContent = item.file.name;
+
+          const state = document.createElement('span');
+          state.className = 'pca-file-state pca-state-' + item.state;
+          state.textContent = item.message;
+
+          row.appendChild(name);
+          row.appendChild(state);
+          this.listElem.appendChild(row);
+        });
+
+        const pending = this.files.filter(f => f.state === 'wait').length;
+        this.infoElem.innerText = this.files.length
+          ? this.files.length + ' 件選択中（未処理 ' + pending + ' 件）'
+          : '選択されていません';
+        this.clearBtn.style.display = this.files.length ? 'inline-block' : 'none';
+
+        this.btn.disabled = (pending === 0);
+        this.btn.classList.toggle('ready-pca', pending > 0);
+      }
+
+      executeAll() {
+        const pending = this.files.filter(f => f.state === 'wait');
+        if (!pending.length) return;
+
+        clearAllCardStatuses();
+        this.btn.disabled = true;
+        LogPanel.add('窓5(PCA仕訳) ' + pending.length + ' 件の解析を開始します / モデル: ' + ModelSelector.current, 'info');
+        this._processNext(pending, 0);
+      }
+
+      /**
+       * 1件ずつ順番に処理します（同時実行するとGASの同時実行制限や
+       * Gemini APIのレート制限に当たりやすいため、あえて直列です）。
+       */
+      _processNext(queue, index) {
+        if (index >= queue.length) {
+          hideLockScreen();
+          const ok = this.files.filter(f => f.state === 'done').length;
+          const ng = this.files.filter(f => f.state === 'err').length;
+          this.statusElem.innerText = '解析完了（成功 ' + ok + ' / 失敗 ' + ng + '）';
+          this.statusElem.className = 'status ' + (ng ? 'error' : 'success');
+          this._renderList();
+          PcaPreview.rebuild();
+          return;
+        }
+
+        const item = queue[index];
+        showLockScreen('請求書を解析中（' + (index + 1) + ' / ' + queue.length + '）: ' + item.file.name);
+        this.statusElem.innerText = '解析中 ' + (index + 1) + ' / ' + queue.length;
+        this.statusElem.className = 'status loading';
+
+        const userPrompt = this.promptElem.value.trim();
+        const modelName = ModelSelector.current;
+        const mime = Utils.detectMimeType(item.file);
+
+        const reader = new FileReader();
+        reader.onerror = () => {
+          item.state = 'err';
+          item.message = '読込失敗';
+          LogPanel.add('窓5(PCA仕訳) ファイル読込失敗: ' + item.file.name, 'error');
+          this._renderList();
+          this._processNext(queue, index + 1);
+        };
+        reader.onload = e => {
+          const base64 = e.target.result.split(',')[1];
+          google.script.run
+            .withSuccessHandler(entries => {
+              const count = (entries || []).length;
+              item.state = 'done';
+              item.message = count + '件';
+              // 蓄積のみ行い、最後にまとめて1回だけ組み立てる
+              PcaPreview.entries = PcaPreview.entries.concat(entries || []);
+              LogPanel.add('窓5(PCA仕訳) 解析成功: ' + item.file.name + ' → ' + count + '件', 'success');
+              this._renderList();
+              this._processNext(queue, index + 1);
+            })
+            .withFailureHandler(err => {
+              item.state = 'err';
+              item.message = '失敗';
+              LogPanel.add('窓5(PCA仕訳) 解析エラー [' + item.file.name + ']: ' + err, 'error');
+              this._renderList();
+              this._processNext(queue, index + 1);
+            })
+            .processInvoiceForPca(base64, mime, userPrompt, modelName, item.file.name);
+        };
+        reader.readAsDataURL(item.file);
+      }
+    }
+
+    // ==================================================================
+    // YayoiWindowController：窓4専用。窓1〜3・窓5のクラスとは完全に独立し、
+    // サーバー側(Code.gs)を一切呼び出さない、ブラウザ内完結の変換処理。
+    // 出力フォーマットは ver1（V5.00）仕様のまま。CSVの読み書きだけ
+    // クォート対応に修正しています（摘要のカンマで列がズレる不具合対策）。
+    // ==================================================================
+    class YayoiWindowController {
+      constructor() {
+        this.zone = document.getElementById('drop-yayoi');
+        this.fileInput = document.getElementById('input-yayoi');
+        this.statusElem = document.getElementById('status-yayoi');
+        this._bindEvents();
+      }
+
+      _bindEvents() {
+        const zone = this.zone;
+        ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => {
+          e.preventDefault();
+          zone.classList.add('hover');
+        }));
+        ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
+          e.preventDefault();
+          zone.classList.remove('hover');
+          if (ev === 'drop') this.handleFile(e.dataTransfer.files[0]);
+        }));
+        zone.addEventListener('click', () => this.fileInput.click());
+        this.fileInput.addEventListener('change', e => this.handleFile(e.target.files[0]));
+      }
+
+      handleFile(file) {
+        if (!file) return;
+        LogPanel.add('窓4(弥生仕訳変換) ドロップ: ' + file.name, 'info');
+        clearAllCardStatuses();
+        this._convert(file);
+      }
+
+      _convert(file) {
+        this.statusElem.innerText = '変換中...';
+        this.statusElem.className = 'status loading';
+        const reader = new FileReader();
+        reader.onload = e => {
+          try {
+            const codes = new Uint8Array(e.target.result);
+            const unicodeString = Encoding.convert(codes, { to: 'UNICODE', from: 'AUTO' });
+            const content = Encoding.codeToString(unicodeString);
+
+            // ⚠ 文字化け対策：クォート対応パーサでCSVを読む
+            const table = Utils.parseCsv(content);
+            const parsedData = [];
+            let total = 0, lastDate = '';
+
+            for (let i = 1; i < table.length; i++) {
+              const cols = table[i];
+              if (cols.length < 3) continue;
+
+              const amt = parseFloat(String(cols[1]).replace(/[^0-9.-]+/g, '')) || 0;
+              parsedData.push({
+                date: String(cols[0]).trim(),
+                amount: amt,
+                desc: String(cols[2]).trim()
+              });
+              total += amt;
+              if (!lastDate || cols[0] > lastDate) lastDate = String(cols[0]).trim();
+            }
+
+            if (!parsedData.length) throw new Error('明細が1件も読み取れませんでした');
+
+            const lines = [];
+            const len = parsedData.length;
+
+            parsedData.forEach((item, index) => {
+              const row = Array(25).fill('');
+              if (index === 0) row[0] = '2110';
+              else if (index === len - 1) row[0] = '2101';
+              else row[0] = '2100';
+
+              row[3] = lastDate;
+              row[4] = '未確定勘定';
+              row[7] = '対象外';
+              row[8] = item.amount;
+              row[10] = (index === 0) ? '未確定勘定' : '';
+              row[13] = '対象外';
+              row[14] = (index === 0) ? total : '0';
+              row[16] = item.desc;
+              row[19] = '3';
+              row[24] = 'no';
+
+              lines.push(Utils.csvRow(row));
+            });
+
+            const output = lines.join('\n') + '\n';
+
+            let baseName = Utils.getBaseFileName(file.name);
+            baseName = baseName.replace('_弥生変換用_クレカ', '');
+            const downloadName = baseName + '_弥生インポート用.csv';
+            Utils.downloadAsSjis(output, downloadName);
+
+            this.statusElem.innerText = '変換成功！';
+            this.statusElem.className = 'status success';
+            LogPanel.add('窓4(弥生仕訳変換) 成功 [' + downloadName + '] (合計: ￥' + total.toLocaleString() + ')', 'success');
+          } catch (err) {
+            this.statusElem.innerText = '変換失敗';
+            this.statusElem.className = 'status error';
+            LogPanel.add('窓4(弥生仕訳変換) 失敗: ' + (err && err.message ? err.message : err) + ' ファイルを確認してください。', 'error');
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    }
+
+    // ==================================================================
+    // 初期化：各窓のインスタンスを作成するだけ。ここに業務ロジックは書かない。
+    // ==================================================================
+    window.onload = function() {
+      ModelSelector.init();
+      EncodingSelector.init();
+
+      window.cashWindow = new AiExtractionWindow({ type: 'cash', gasFunctionName: 'processCash', label: '窓1(スマート通帳)', isPreviewType: true });
+      window.smartCreditWindow = new AiExtractionWindow({ type: 'smart_credit', gasFunctionName: 'processSmartCredit', label: '窓2(スマートクレカ)', isPreviewType: true });
+      window.creditWindow = new AiExtractionWindow({ type: 'credit', gasFunctionName: 'processCredit', label: '窓3(弥生変換用クレカ)', isPreviewType: false });
+      window.yayoiWindow = new YayoiWindowController();
+      window.pcaWindow = new PcaWindowController();
+
+      MasterPanel.reload();
+
+      google.script.run.withSuccessHandler(function(key) {
+        if (key) {
+          document.getElementById('user-api-key').value = key;
+          LogPanel.add('保存済みのGemini APIキーを読み込みました', 'success');
+        }
+      }).getUserApiKey();
+    };
+  </script>
+</body>
+</html>
