@@ -123,6 +123,14 @@ function reclassifyEntries(entries) {
   return new PcaInvoiceWindow().reclassify(entries);
 }
 
+/**
+ * 🧾 窓5：前回出力した Excel／スプレッドシートを読み込み、表として返す。
+ * （CSVはブラウザ側で読めるため、ここではExcelとスプレッドシートだけ扱います）
+ */
+function importPreviousTable(payload) {
+  return new PreviousTableImporter().read(payload);
+}
+
 /** 📗 Googleスプレッドシートとして出力し、URLを返す */
 function exportToSpreadsheet(payload) {
   return new SheetExporter().toSpreadsheet(payload);
@@ -1213,6 +1221,114 @@ class SheetExporter {
         base64: Utilities.base64Encode(response.getBlob().getBytes()),
         fileName: ss.getName() + '.xlsx'
       };
+    } finally {
+      // 一時ファイルは必ず片付ける（失敗しても本処理は止めない）
+      try { DriveApp.getFileById(id).setTrashed(true); } catch (cleanupErr) { /* noop */ }
+    }
+  }
+}
+
+
+// ====================================================================
+// PreviousTableImporter：前回出力した Excel／スプレッドシートの読み込み
+// ------------------------------------------------------------------
+// 「一度出力したファイルの下に追加したい」を、CSVだけでなく
+// Excel(.xlsx) とGoogleスプレッドシートでも行えるようにするためのクラス。
+//
+// ・Excel は Drive にスプレッドシートとして変換アップロードしてから読み、
+//   一時ファイルは必ず片付けます（Drive上に残しません）。
+// ・スプレッドシートは URL から直接開いて読みます。
+// 窓1〜窓4の処理には一切関与しません。
+// ====================================================================
+class PreviousTableImporter {
+
+  static get XLSX_MIME() {
+    return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  }
+
+  /** payload = { kind: 'excel', base64, fileName } | { kind: 'sheet', url } */
+  read(payload) {
+    const kind = payload && payload.kind;
+    if (kind === 'excel') return this._readExcel(payload.base64, payload.fileName);
+    if (kind === 'sheet') return this._readSpreadsheet(payload.url);
+    throw new Error('読み込み方法が指定されていません。');
+  }
+
+  /** シートの値を { headers, rows } に整形。空行は落とします。 */
+  _toTable(sheet, sourceName) {
+    const values = sheet.getDataRange().getValues();
+    if (!values.length) throw new Error('シートが空です: ' + sourceName);
+
+    const headers = values[0].map(function (h) { return CsvUtil.sanitize(h); });
+    const rows = [];
+    for (let i = 1; i < values.length; i++) {
+      const row = values[i];
+      const hasValue = row.some(function (v) {
+        return v !== '' && v !== null && v !== undefined;
+      });
+      if (!hasValue) continue;
+      rows.push(headers.map(function (_, c) {
+        const v = row[c];
+        if (v === null || v === undefined) return '';
+        // 日付セルは YYYYMMDD / YYYY/MM/DD の見た目が崩れないよう文字列化する
+        if (Object.prototype.toString.call(v) === '[object Date]') {
+          return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy/MM/dd');
+        }
+        return (typeof v === 'number') ? v : CsvUtil.sanitize(v);
+      }));
+    }
+    return { headers: headers, rows: rows, sourceName: sourceName };
+  }
+
+  _readSpreadsheet(url) {
+    if (!url || !String(url).trim()) throw new Error('スプレッドシートのURLを入力してください。');
+    let ss;
+    try {
+      ss = SpreadsheetApp.openByUrl(String(url).trim());
+    } catch (e) {
+      throw new Error('スプレッドシートを開けませんでした。URLと閲覧権限をご確認ください。');
+    }
+    return this._toTable(ss.getSheets()[0], ss.getName());
+  }
+
+  /**
+   * Excel を Drive にスプレッドシートへ変換してアップロードし、読み終えたら削除する。
+   * Drive API v3 の multipart アップロードを使うため、追加ライブラリは不要です。
+   */
+  _readExcel(base64, fileName) {
+    if (!base64) throw new Error('ファイルの内容を受け取れませんでした。');
+    const name = CsvUtil.sanitize(fileName) || 'imported.xlsx';
+
+    const boundary = 'aiacboundary' + Date.now();
+    const metadata = { name: name, mimeType: 'application/vnd.google-apps.spreadsheet' };
+
+    const head = Utilities.newBlob(
+      '--' + boundary + '\r\n' +
+      'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+      JSON.stringify(metadata) + '\r\n' +
+      '--' + boundary + '\r\n' +
+      'Content-Type: ' + PreviousTableImporter.XLSX_MIME + '\r\n\r\n'
+    ).getBytes();
+    const body = Utilities.base64Decode(base64);
+    const tail = Utilities.newBlob('\r\n--' + boundary + '--').getBytes();
+
+    const response = UrlFetchApp.fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
+        method: 'post',
+        contentType: 'multipart/related; boundary=' + boundary,
+        payload: head.concat(body).concat(tail),
+        headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+        muteHttpExceptions: true
+      });
+
+    if (response.getResponseCode() !== 200) {
+      throw new Error('Excelの読み込みに失敗しました (HTTP ' + response.getResponseCode() + ')。' +
+        'appsscript.json の権限設定をご確認ください。');
+    }
+
+    const id = JSON.parse(response.getContentText()).id;
+    try {
+      return this._toTable(SpreadsheetApp.openById(id).getSheets()[0], name);
     } finally {
       // 一時ファイルは必ず片付ける（失敗しても本処理は止めない）
       try { DriveApp.getFileById(id).setTrashed(true); } catch (cleanupErr) { /* noop */ }

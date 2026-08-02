@@ -28,7 +28,7 @@
       background: radial-gradient(circle at 10% 0%, #f3fafe 0%, #e4f2fb 45%, #d7ecfa 100%);
       background-attachment: fixed;
       margin: 0;
-      padding: 24px 20px 60px;
+      padding: 24px 16px 60px;
       color: var(--text-main);
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
@@ -36,7 +36,7 @@
 
     .container {
       width: 100%;
-      max-width: 1400px;
+      max-width: 1900px;   /* 表の列を少しでも多く見せるため広げる */
       margin: auto;
       text-align: center;
       position: relative;
@@ -57,12 +57,12 @@
       background: rgba(244, 250, 254, 0.92);
       backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--card-border);
-      margin: -24px -20px 28px;
-      padding: 14px 20px;
+      margin: -24px -16px 28px;
+      padding: 14px 16px;
     }
 
     .app-header-inner {
-      max-width: 1400px;
+      max-width: 1900px;
       margin: 0 auto;
       display: flex;
       align-items: center;
@@ -612,7 +612,7 @@
       margin: 34px auto 0 auto;
       background: var(--card-bg);
       border-radius: 24px;
-      padding: 26px;
+      padding: 20px 16px;
       box-shadow: 0 16px 34px -10px rgba(2,132,199,0.18), 0 6px 14px -6px rgba(2,132,199,0.1);
       border: 1px solid var(--card-border);
       text-align: left;
@@ -701,6 +701,17 @@
     }
 
     .notice-primary { font-size: 0.88em; line-height: 1.6; margin-bottom: 10px; }
+
+    /* 説明文の箇条書き（長文が変な位置で折り返すのを防ぐ） */
+    .notice-list {
+      margin: 8px 0 0;
+      padding-left: 1.3em;
+      font-size: 0.95em;
+      color: #475569;
+    }
+
+    .notice-list li { margin-bottom: 5px; line-height: 1.7; }
+    .notice-list li:last-child { margin-bottom: 0; }
     .notice-primary strong { color: #1d6cc9; }
 
     .notice-sub-toggle {
@@ -731,7 +742,7 @@
     .table-container {
       width: 100%;
       overflow-x: auto;
-      max-height: 400px;
+      max-height: 520px;
       overflow-y: auto;
       border: 1px solid var(--card-border);
       border-radius: 14px;
@@ -748,7 +759,7 @@
       background: #eef6fc;
       color: #345a78;
       font-weight: 700;
-      padding: 12px;
+      padding: 9px 8px;
       border-bottom: 2px solid var(--card-border);
       position: sticky;
       top: 0;
@@ -757,7 +768,7 @@
     }
 
     .preview-table td {
-      padding: 8px 12px;
+      padding: 6px 8px;
       border-bottom: 1px solid #eef2f6;
       color: #1e293b;
       background: #fff;
@@ -770,6 +781,17 @@
       cursor: pointer;
       min-width: 80px;
       transition: background-color 0.15s;
+    }
+
+    /* 長い摘要や要確認メモが列幅を押し広げて表全体が横に伸びるのを防ぐ。
+       td に max-width を付けても table-layout:auto では効かないため、
+       内側の要素で幅を止めています。全文はツールチップで読めます。 */
+    .cell-text {
+      display: block;
+      max-width: 230px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .cell-editable:hover {
@@ -817,14 +839,63 @@
     }
 
     /* 表内のプルダウン（科目・部門・税区分などの選択セル） */
+    /* ================================================================
+       行の内容を示す固定列
+       ---------------------------------------------------------------
+       横スクロールすると「どの請求書の行を見ているのか」が分からなく
+       なるため、取引先と摘要を左端に固定表示します。
+       画面専用の列なので、CSV・Excel・スプレッドシートには出力されません。
+       ================================================================ */
+    .row-head {
+      position: sticky;
+      left: 0;
+      z-index: 5;
+      background: #f7fbfe !important;
+      border-right: 2px solid #cfe3f5 !important;
+      max-width: 230px;
+      min-width: 170px;
+      white-space: normal !important;
+    }
+
+    .preview-table th.row-head {
+      z-index: 15;
+      background: #e3eef8 !important;
+    }
+
+    .row-head-vendor {
+      font-weight: 700;
+      font-size: 0.94em;
+      color: #1e3a5f;
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .row-head-desc {
+      font-size: 0.86em;
+      color: var(--text-sub);
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .cell-select { padding: 4px 6px; }
 
     /* 幅の制限は枠（.select-wrap）側に持たせる。
        select 側に max-width を付けると、セルが広いときに
        枠だけが広がって矢印が select の外に浮いてしまうため。 */
     .cell-select .select-wrap {
-      min-width: 168px;
-      max-width: 280px;
+      min-width: 148px;
+      max-width: 260px;
+    }
+
+    /* コード列は数字だけなので狭くしてよい（横幅を他の列に回す）。
+       ただし「（未設定）」が切れない幅は確保する。 */
+    .cell-select.is-narrow .select-wrap {
+      min-width: 122px;
+      max-width: 150px;
     }
 
     .cell-dropdown {
@@ -1360,9 +1431,12 @@
 
       <div class="preview-notice-box">
         <div class="notice-primary">
-          💡 <strong>日付のズレや読み取りミスが多い場合のアドバイス：</strong><br>
-          1箇所ずつ手作業で直すよりも、上のカードにある<strong>「AIへの追加指示（任意）」</strong>欄に「日付は2026年◯月で読み取って」「1行目をヘッダーにしないで」などと具体的に指示を書き込み、<strong>もう一度ファイルを落とし込んで変換し直す</strong>のが、早くて確実なのでおすすめです！<br>
-          <span style="font-size: 0.9em; color: #475569; display: block; margin-top: 4px;">※ 数件程度の軽微なズレは、以下のセルをダブルクリックすることで、その場でテキストや数値を直接書き換え可能です。読み取り精度が気になる場合は、画面右上のモデル選択を「3.6 Flash」に切り替えるのも有効です。</span>
+          💡 <strong>日付のズレや読み取りミスが多い場合のアドバイス</strong>
+          <ul class="notice-list">
+            <li>1箇所ずつ手作業で直すよりも、上のカードの<strong>「AIへの追加指示（任意）」</strong>欄に「日付は2026年◯月で読み取って」「1行目をヘッダーにしないで」など具体的に書き込み、<strong>もう一度ファイルを落として変換し直す</strong>のが早くて確実です</li>
+            <li>数件程度の軽微なズレは、下の表のセルを<strong>ダブルクリック</strong>すればその場で直せます</li>
+            <li>読み取り精度が気になる場合は、画面上部のモデル選択を<strong>「3.6 Flash」</strong>に切り替えるのも有効です</li>
+          </ul>
         </div>
 
         <button class="notice-sub-toggle" onclick="toggleLogicDetails()">
@@ -1403,29 +1477,28 @@
       <div class="mode-toggle">
         <button id="pca-mode-internal" class="mode-btn active" onclick="PcaPreview.setMode('internal')">🏢 社内用（社内財務管理表 取込）</button>
         <button id="pca-mode-office" class="mode-btn" onclick="PcaPreview.setMode('office')">🏛 会計事務所用（PCA仕訳インポート）</button>
-        <button class="mode-btn" onclick="document.getElementById('input-prev-csv').click()">📥 前回出力したCSVを読み込んで続きに追加</button>
+        <button class="mode-btn" onclick="document.getElementById('input-prev-csv').click()">📥 前回出力を読み込んで続きに追加（CSV / Excel）</button>
+        <button class="mode-btn" onclick="PcaPreview.loadPreviousSpreadsheet()">📗 スプレッドシートから読み込む</button>
         <button id="pca-clear-carry" class="mode-btn" style="display:none;" onclick="PcaPreview.clearCarry()">✖ 読み込みを解除</button>
       </div>
-      <input type="file" id="input-prev-csv" class="hidden-input" accept=".csv">
+      <input type="file" id="input-prev-csv" class="hidden-input" accept=".csv,.xlsx">
       <div id="carry-info" class="carry-info"></div>
 
       <div class="preview-notice-box">
         <div class="notice-primary">
-          🧾 <strong>複数の請求書をまとめて1つのCSVに出力します。</strong>
+          🧾 <strong>複数の請求書をまとめて1つのファイルに出力します。</strong>
           窓5に何枚でもファイルを落として「まとめてAI解析」を押すと、すべての明細がこの1つの表に蓄積されます。
-          印刷された請求書・手書きの請求書・複数ページの請求明細のいずれにも対応します。<br>
-          <span style="font-size: 0.9em; color: #475569; display: block; margin-top: 6px;">
-            ⚠ <strong>勘定科目が判定できなかった行は、文字化けではなく「空欄（黄色いセル）」で出力されます。</strong>
-            後から人の手で書き換える前提の仕様です。セルをダブルクリックすればその場で入力できます。<br>
-            🟠 <strong>オレンジ色の行</strong>は「要確認メモ」が付いた行です。日付を西暦に確定できなかった、
-            税抜＋消費税と税込が合わなかった、大分類が特定できず科目を確定できなかった、などの理由が記載されています。<br>
-            ▼ <strong>勘定科目・補助科目・部門・税区分・大分類・小分類はプルダウンから選べます。</strong>
-            コードと名称は連動するので、どちらか一方を選べば両方入ります。
-            <strong>会計のコードが分からない場合は「大分類」→「小分類」を選んでください。</strong>
-            マスタの紐付けに従って、勘定科目コードと科目名が自動で入ります。<br>
-            ※「社内用」と「会計事務所用」は上のボタンで切り替えられ、それぞれ別のレイアウトで出力されます。<br>
-            ※ 科目は<strong>「PL（詳細）」の大分類＋小分類のペア</strong>で判定します。一覧に無い科目をAIが作ることはありません。
-          </span>
+          <ul class="notice-list">
+            <li>印刷された請求書・手書きの請求書・複数ページの請求明細のいずれにも対応します</li>
+            <li>⚠ <strong>勘定科目が判定できなかった行は「空欄（黄色いセル）」で出力されます</strong>（文字化けではありません）。後から人の手で書き換える前提の仕様です</li>
+            <li>🟠 <strong>オレンジ色の行</strong>は「要確認メモ」が付いた行です。日付を西暦に確定できなかった／税抜＋消費税と税込が合わなかった／大分類が特定できず科目を確定できなかった、などの理由が記載されています</li>
+            <li>▼ <strong>勘定科目・補助科目・部門・税区分・大分類・小分類はプルダウンから選べます。</strong>コードと名称は連動するので、どちらか一方を選べば両方入ります</li>
+            <li>🔰 <strong>会計のコードが分からない場合は「大分類」→「小分類」を選んでください。</strong>マスタの紐付けに従って、勘定科目コードと科目名が自動で入ります</li>
+            <li>📝 左端の<strong>「内容」列</strong>は画面専用です。横スクロールしても、どの請求書の行かが分かるように固定表示しています（出力には含まれません）</li>
+            <li>金額・日付・摘要文はセルを<strong>ダブルクリック</strong>すると自由入力できます</li>
+            <li>「社内用」と「会計事務所用」は上のボタンで切り替えられ、それぞれ別のレイアウトで出力されます</li>
+            <li>科目は<strong>「PL（詳細）」の大分類＋小分類のペア</strong>で判定します。一覧に無い科目をAIが作ることはありません</li>
+          </ul>
         </div>
       </div>
 
@@ -1437,15 +1510,14 @@
         </div>
         <div class="unresolved-note">
           科目を決めて「ルールとして保存」を押すと、<strong>次回から同じ請求書は自動で仕分けされます</strong>。
-          社内ルールが固まっていない今は空欄のまま出力し、決まったものから1件ずつ足していく運用ができます。<br>
-          <strong>「ルール：取引先」「ルール：摘要」は、不要なほうを空にしてから保存してください。</strong><br>
-          <span style="color:#475569;">
-            ・<strong>摘要だけ</strong>残す … 取引先を問わず適用（例：摘要「画稿費」→ デザイン費）<br>
-            ・<strong>取引先だけ</strong>残す … その取引先の請求書はすべて同じ科目に。
-              <strong>「前受金として」のように摘要に内容が書かれていない請求書</strong>はこちらが有効です<br>
-            ・<strong>両方</strong>残す … 両方に一致したときだけ適用（もっとも安全。まずはこの形を推奨）<br>
-            ※ 保存後に「🔄 マスタを反映して再判定」を押すと、いま読み込み済みの明細にもすぐ反映されます（AIの再解析は行わないため無料・一瞬です）。
-          </span>
+          社内ルールが固まっていない今は空欄のまま出力し、決まったものから1件ずつ足していく運用ができます。
+          <ul class="notice-list">
+            <li><strong>「ルール：取引先」「ルール：摘要」は、不要なほうを空にしてから保存してください</strong></li>
+            <li><strong>摘要だけ</strong>残す … 取引先を問わず適用（例：摘要「画稿費」→ デザイン費）</li>
+            <li><strong>取引先だけ</strong>残す … その取引先の請求書はすべて同じ科目に。<strong>「前受金として」のように摘要に内容が書かれていない請求書</strong>はこちらが有効です</li>
+            <li><strong>両方</strong>残す … 両方に一致したときだけ適用（もっとも安全。まずはこの形を推奨）</li>
+            <li>保存後に「🔄 マスタを反映して再判定」を押すと、いま読み込み済みの明細にもすぐ反映されます（AIの再解析は行わないため無料・一瞬です）</li>
+          </ul>
         </div>
         <div class="table-container" style="max-height: 320px;">
           <table class="preview-table" id="unresolved-table">
@@ -2776,6 +2848,16 @@
         tbody.innerHTML = '';
 
         const headerRow = document.createElement('tr');
+
+        // 横スクロールしても行の中身が分かるよう、左端に固定列を出す（画面専用）
+        if (opts.rowHead) {
+          const thHead = document.createElement('th');
+          thHead.className = 'row-head';
+          thHead.innerHTML = opts.rowHead.label ||
+            '📝 内容<br><small style="font-size:0.8em; font-weight:normal;">(画面専用・出力除外)</small>';
+          headerRow.appendChild(thHead);
+        }
+
         opts.headers.forEach(name => {
           const th = document.createElement('th');
           th.textContent = name;
@@ -2800,6 +2882,23 @@
         opts.rows.forEach((row, rIdx) => {
           const tr = document.createElement('tr');
 
+          if (opts.rowHead) {
+            const tdHead = document.createElement('td');
+            tdHead.className = 'row-head';
+            const info = opts.rowHead.render(row, rIdx) || {};
+            const vendor = document.createElement('span');
+            vendor.className = 'row-head-vendor';
+            vendor.textContent = info.title || '';
+            const desc = document.createElement('span');
+            desc.className = 'row-head-desc';
+            desc.textContent = info.subtitle || '';
+            // 省略された場合でも全文が読めるようにツールチップを付ける
+            tdHead.title = [info.title, info.subtitle].filter(Boolean).join(' / ');
+            tdHead.appendChild(vendor);
+            tdHead.appendChild(desc);
+            tr.appendChild(tdHead);
+          }
+
           for (let cIdx = 0; cIdx < opts.headers.length; cIdx++) {
             const value = row[cIdx];
             const td = document.createElement('td');
@@ -2811,6 +2910,7 @@
 
             if (spec && spec.kind === 'select') {
               td.className = 'cell-select';
+              if (spec.narrow) td.classList.add('is-narrow');
               if (text === '') td.classList.add('cell-blank');
 
               const select = document.createElement('select');
@@ -2842,27 +2942,35 @@
             }
 
             td.className = 'cell-editable';
-            td.textContent = text;
+            const span = document.createElement('span');
+            span.className = 'cell-text';
+            span.textContent = text;
+            td.appendChild(span);
+            if (text) td.title = text;   // 省略表示でも全文が読めるように
             // 空欄（＝科目が判定できなかった箇所）を色で示す。CSVには空欄のまま出ます。
             if (text === '') td.classList.add('cell-blank');
 
             td.addEventListener('dblclick', () => {
               if (td.querySelector('input')) return;
+              const current = span.textContent;
               const input = document.createElement('input');
               input.type = 'text';
               input.className = 'cell-input';
-              input.value = td.textContent;
+              input.value = current;
 
               input.addEventListener('blur', () => {
                 const val = input.value.trim();
-                td.textContent = val;
+                td.innerHTML = '';
+                span.textContent = val;
+                td.appendChild(span);
+                td.title = val;
                 opts.onEdit(rIdx, cIdx, val);
               });
               input.addEventListener('keydown', e => {
                 if (e.key === 'Enter') input.blur();
               });
 
-              td.textContent = '';
+              td.innerHTML = '';
               td.appendChild(input);
               input.focus();
             });
@@ -3188,12 +3296,17 @@
         return MasterPanel.masters || {};
       },
 
-      /** 勘定科目の選択肢。「コード 科目名」で表示します。 */
+      /**
+       * 勘定科目の選択肢。
+       * コード列は「コード」だけ、名称列は「科目名」だけを表示します。
+       * 両方に「710 売上原価」と出すと同じ情報が二重になり、
+       * 横幅を無駄に使って画面が見づらくなるためです。
+       */
       accountOptions(byName) {
         const list = this.masters().pcaAccounts || [];
         return [this._blank()].concat(list.map(a => ({
           value: byName ? a.name : String(a.code),
-          label: a.code + ' ' + a.name
+          label: byName ? a.name : String(a.code)
         })));
       },
 
@@ -3201,7 +3314,7 @@
         const list = this.masters().departments || [];
         return [this._blank()].concat(list.map(d => ({
           value: byName ? d.name : String(d.code),
-          label: d.code + ' ' + d.name
+          label: byName ? d.name : String(d.code)
         })));
       },
 
@@ -3214,9 +3327,9 @@
       subOptions(accountCode, byName) {
         const map = (this.masters().subAccounts || {});
         const list = map[String(accountCode || '').trim()] || [];
-        return [this._blank('（補助なし）')].concat(list.map(pair => ({
+        return [this._blank('（なし）')].concat(list.map(pair => ({
           value: byName ? pair[1] : String(pair[0]),
-          label: pair[0] + ' ' + pair[1]
+          label: byName ? pair[1] : String(pair[0])
         })));
       },
 
@@ -3302,6 +3415,7 @@
               const byName = (cIdx === g.name);
               return {
                 kind: 'select',
+                narrow: !byName,          // コード列は数字だけなので狭くてよい
                 options: self.accountOptions(byName),
                 apply(r, value) {
                   self._applyAccount(rows, r, headers, g.code, g.name, value, byName);
@@ -3316,6 +3430,7 @@
               const byName = (cIdx === g.subName);
               return {
                 kind: 'select',
+                narrow: !byName,
                 options: self.subOptions(row[g.code], byName),
                 apply(r, value) {
                   self._applySub(rows, r, g.code, g.sub, g.subName, value, byName);
@@ -3330,6 +3445,7 @@
               const byName = (cIdx === g.name);
               return {
                 kind: 'select',
+                narrow: !byName,
                 options: self.departmentOptions(byName),
                 apply(r, value) {
                   self._applyDepartment(rows, r, g.code, g.name, value, byName);
@@ -3429,45 +3545,109 @@
       },
 
       /**
-       * 前回出力したCSVを読み込み、その下に今回の明細を積む「追記モード」。
-       * 伝票番号は読み込んだCSVの最大値の次から続けて振ります。
+       * 前回出力したファイルを読み込み、その下に今回の明細を積む「追記モード」。
+       * CSV / Excel(.xlsx) / Googleスプレッドシート のいずれにも対応します。
+       * 伝票番号は読み込んだ表の最大値の次から続けて振ります。
        */
-      loadPreviousCsv(file) {
+      loadPreviousFile(file) {
         if (!file) return;
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+
+        if (ext === 'xlsx' || ext === 'xlsm') {
+          // Excelはブラウザだけでは読めないため、サーバー側で変換して読みます
+          showLockScreen('Excelを読み込んでいます...');
+          const reader = new FileReader();
+          reader.onerror = () => {
+            hideLockScreen();
+            LogPanel.add('窓5(PCA仕訳) ファイルの読み込みに失敗しました', 'error');
+          };
+          reader.onload = e => {
+            google.script.run
+              .withSuccessHandler(res => {
+                hideLockScreen();
+                this._applyCarryTable(res.headers, res.rows, file.name);
+              })
+              .withFailureHandler(err => {
+                hideLockScreen();
+                LogPanel.add('窓5(PCA仕訳) Excelの読み込みに失敗: ' + err, 'error');
+              })
+              .importPreviousTable({
+                kind: 'excel',
+                base64: e.target.result.split(',')[1],
+                fileName: file.name
+              });
+          };
+          reader.readAsDataURL(file);
+          return;
+        }
+
+        if (ext !== 'csv') {
+          LogPanel.add('窓5(PCA仕訳) 対応していない形式です: ' + file.name +
+            '（CSV・Excel(.xlsx)、またはスプレッドシートをご利用ください）', 'error');
+          return;
+        }
+
         const reader = new FileReader();
         reader.onload = e => {
           try {
             const table = Utils.parseCsv(Utils.decodeBytes(e.target.result));
             if (table.length < 2) throw new Error('明細行が見つかりませんでした');
-
-            const headers = table[0].map(h => String(h).trim());
-            // どちらの形式で出力したCSVかを、ヘッダーから判定する
-            const isOffice = headers.indexOf('貸方科目コード') !== -1;
-            const mode = isOffice ? 'office' : 'internal';
-            if (headers.indexOf('伝票日付') === -1 || headers.indexOf('借方科目コード') === -1) {
-              throw new Error('窓5で出力したCSVではないようです（ヘッダーが一致しません）');
-            }
-
-            this.carryRows = table.slice(1).map(r =>
-              headers.map((_, i) => (r[i] === undefined ? '' : r[i])));
-            this.carryMode = mode;
-            this.carryName = file.name;
-            this.mode = mode;
-            document.getElementById('pca-mode-internal').classList.toggle('active', mode === 'internal');
-            document.getElementById('pca-mode-office').classList.toggle('active', mode === 'office');
-
-            LogPanel.add('窓5(PCA仕訳) 前回出力を読み込みました: [' + file.name + '] ' +
-              this.carryRows.length + '行 / 形式: ' +
-              (isOffice ? '会計事務所用' : '社内用') +
-              ' → 次の伝票番号は ' + this.nextVoucherNo() + ' から', 'success');
-
-            this.rebuild();
+            this._applyCarryTable(table[0].map(h => String(h).trim()), table.slice(1), file.name);
           } catch (err) {
             LogPanel.add('窓5(PCA仕訳) 前回出力の読み込みに失敗: ' +
               (err && err.message ? err.message : err), 'error');
           }
         };
         reader.readAsArrayBuffer(file);
+      },
+
+      /** Googleスプレッドシートから読み込む（URLを指定）。 */
+      loadPreviousSpreadsheet() {
+        const url = prompt('前回出力したGoogleスプレッドシートのURLを貼り付けてください。\n（1枚目のシートを読み込みます）');
+        if (!url || !url.trim()) return;
+
+        showLockScreen('スプレッドシートを読み込んでいます...');
+        google.script.run
+          .withSuccessHandler(res => {
+            hideLockScreen();
+            this._applyCarryTable(res.headers, res.rows, res.sourceName || 'スプレッドシート');
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            LogPanel.add('窓5(PCA仕訳) スプレッドシートの読み込みに失敗: ' + err, 'error');
+          })
+          .importPreviousTable({ kind: 'sheet', url: url.trim() });
+      },
+
+      /**
+       * 読み込んだ表を「前回分」として取り込む共通処理。
+       * CSV / Excel / スプレッドシート のどの経路でもここに集約します。
+       */
+      _applyCarryTable(headers, rows, sourceName) {
+        try {
+          if (headers.indexOf('伝票日付') === -1 || headers.indexOf('借方科目コード') === -1) {
+            throw new Error('窓5で出力したファイルではないようです（ヘッダーが一致しません）');
+          }
+          // どちらの形式で出力したものかを、ヘッダーから判定する
+          const isOffice = headers.indexOf('貸方科目コード') !== -1;
+          const mode = isOffice ? 'office' : 'internal';
+
+          this.carryRows = rows.map(r => headers.map((_, i) => (r[i] === undefined ? '' : r[i])));
+          this.carryMode = mode;
+          this.carryName = sourceName;
+          this.mode = mode;
+          document.getElementById('pca-mode-internal').classList.toggle('active', mode === 'internal');
+          document.getElementById('pca-mode-office').classList.toggle('active', mode === 'office');
+
+          LogPanel.add('窓5(PCA仕訳) 前回出力を読み込みました: [' + sourceName + '] ' +
+            this.carryRows.length + '行 / 形式: ' + (isOffice ? '会計事務所用' : '社内用') +
+            ' → 次の伝票番号は ' + this.nextVoucherNo() + ' から', 'success');
+
+          this.rebuild();
+        } catch (err) {
+          LogPanel.add('窓5(PCA仕訳) 前回出力の読み込みに失敗: ' +
+            (err && err.message ? err.message : err), 'error');
+        }
       },
 
       /** 読み込んだ前回出力の伝票番号の続き（無ければ1）。 */
@@ -3527,6 +3707,10 @@
       render() {
         const accIdx = this.table.headers.indexOf('借方科目コード');
         const memoIdx = this.table.headers.indexOf('要確認メモ');
+        // 左端の固定列に出す情報（取引先と摘要）。会計事務所用には取引先列が
+        // 無いため、その場合は摘要だけを見出しにします。
+        const vendorIdx = this.table.headers.indexOf('取引先');
+        const descIdx = this.table.headers.indexOf('摘要文');
 
         const blanks = this.table.rows.reduce((acc, row) =>
           acc + ((accIdx !== -1 && String(row[accIdx] || '') === '') ? 1 : 0), 0);
@@ -3547,10 +3731,12 @@
         const clearBtn = document.getElementById('pca-clear-carry');
         if (carryCount) {
           info.style.display = 'block';
-          info.innerHTML = '📥 <strong>' + this._escapeHtml(this.carryName) + '</strong> の ' + carryCount +
-            ' 行を読み込み済みです。<strong>今回の明細はその下に追加</strong>され、' +
-            '伝票番号は <strong>' + this.nextVoucherNo() + '</strong> から続けて振られます。' +
-            '出力すると、読み込んだ分と今回分をまとめた1つのファイルになります。';
+          info.innerHTML = '📥 <strong>' + this._escapeHtml(this.carryName) + '</strong> を読み込み済みです。' +
+            '<ul class="notice-list">' +
+            '<li>読み込んだ <strong>' + carryCount + ' 行</strong>（左端に緑の帯）の<strong>下に、今回の明細が追加</strong>されます</li>' +
+            '<li>伝票番号は <strong>' + this.nextVoucherNo() + '</strong> から続けて振られます（前回分と重複しません）</li>' +
+            '<li>出力すると、読み込んだ分と今回分をまとめた1つのファイルになります</li>' +
+            '</ul>';
           clearBtn.style.display = 'inline-block';
         } else {
           info.style.display = 'none';
@@ -3572,6 +3758,13 @@
             if (memoIdx !== -1 && String(row[memoIdx] || '') !== '') {
               tr.style.background = '#fff7ed';
             }
+          },
+          // 左端に固定表示する「内容」列（取引先と摘要）。出力には含めません。
+          rowHead: {
+            render: row => ({
+              title: vendorIdx !== -1 ? String(row[vendorIdx] || '') : '',
+              subtitle: descIdx !== -1 ? String(row[descIdx] || '') : ''
+            })
           },
           // 科目・部門・税区分・大分類/小分類はマスタからのプルダウン選択にする
           cellEditor: PcaCellEditors.build(this.table.headers, this.table.rows, () => {
@@ -4121,7 +4314,7 @@
 
       // 前回出力CSVの読み込み（追記モード）
       document.getElementById('input-prev-csv').addEventListener('change', e => {
-        PcaPreview.loadPreviousCsv(e.target.files[0]);
+        PcaPreview.loadPreviousFile(e.target.files[0]);
         e.target.value = '';
       });
 
