@@ -780,13 +780,55 @@
     /* 空欄セル（科目不明）を目立たせる。CSVには空欄のまま出力されます。 */
     .cell-blank { background-color: #fffbeb !important; }
 
+    /* ================================================================
+       プルダウン共通
+       ---------------------------------------------------------------
+       ブラウザ標準の ▼ は幅を制御できず、選択肢の文字と重なって
+       読めなくなるため、標準の矢印を消して自前で描画しています。
+       あわせて右側に矢印ぶんの余白を確保し、長い文字は「…」で省略します。
+       ================================================================ */
+    .select-wrap {
+      position: relative;
+      display: block;
+      width: 100%;
+    }
+
+    .select-wrap::after {
+      content: '';
+      position: absolute;
+      right: 11px;
+      top: 50%;
+      width: 7px;
+      height: 7px;
+      border-right: 2px solid #64748b;
+      border-bottom: 2px solid #64748b;
+      transform: translateY(-70%) rotate(45deg);
+      pointer-events: none;   /* 矢印がクリックを奪わないようにする */
+    }
+
+    .select-wrap select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      padding-right: 28px;    /* ← 矢印ぶんの余白。文字が重ならない */
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
     /* 表内のプルダウン（科目・部門・税区分などの選択セル） */
     .cell-select { padding: 4px 6px; }
 
+    /* 幅の制限は枠（.select-wrap）側に持たせる。
+       select 側に max-width を付けると、セルが広いときに
+       枠だけが広がって矢印が select の外に浮いてしまうため。 */
+    .cell-select .select-wrap {
+      min-width: 168px;
+      max-width: 280px;
+    }
+
     .cell-dropdown {
       width: 100%;
-      min-width: 150px;
-      max-width: 260px;
       padding: 5px 7px;
       border: 1px solid #cfe3f5;
       border-radius: 8px;
@@ -1029,8 +1071,12 @@
     /* PCA科目が未設定の行を目立たせる（＝あとで設定する対象） */
     .master-cell-input.is-empty { background: #fffbeb; border-color: #fcd34d; }
 
-    .master-select {
-      width: 100%;
+    .master-select { width: 100%; }
+
+    .master-tabs ~ .table-container .select-wrap,
+    #master-tbody .select-wrap { min-width: 190px; }
+
+    .master-select-unused {
       min-width: 190px;
       padding: 6px 8px;
       border: 1px solid #cfe3f5;
@@ -1188,10 +1234,12 @@
           <button class="toolbar-btn" data-popover="pop-model">🤖 モデル</button>
           <div id="pop-model" class="popover">
             <label class="model-select-label">使用するGeminiモデル</label>
-            <select id="gemini-model-select" class="model-select">
-              <option value="gemini-3.5-flash-lite">3.5 Flash-Lite</option>
-              <option value="gemini-3.6-flash">3.6 Flash</option>
-            </select>
+            <span class="select-wrap">
+              <select id="gemini-model-select" class="model-select">
+                <option value="gemini-3.5-flash-lite">3.5 Flash-Lite</option>
+                <option value="gemini-3.6-flash">3.6 Flash</option>
+              </select>
+            </span>
             <div id="model-desc" class="model-desc"></div>
           </div>
         </div>
@@ -1200,10 +1248,12 @@
           <button class="toolbar-btn" data-popover="pop-encoding">💾 文字コード</button>
           <div id="pop-encoding" class="popover">
             <label class="model-select-label">CSVの文字コード</label>
-            <select id="encoding-select" class="model-select">
-              <option value="SJIS">Shift-JIS（弥生・PCAのPC版向け／既定）</option>
-              <option value="UTF8BOM">UTF-8 BOM付き（Excel・スプレッドシート向け）</option>
-            </select>
+            <span class="select-wrap">
+              <select id="encoding-select" class="model-select">
+                <option value="SJIS">Shift-JIS（弥生・PCAのPC版向け／既定）</option>
+                <option value="UTF8BOM">UTF-8 BOM付き（Excel・スプレッドシート向け）</option>
+              </select>
+            </span>
             <div class="model-desc">
               文字化けが出る場合はこちらを切り替えてください。丸数字（①）や機種依存文字はShift-JISに存在しないため、UTF-8を推奨します。
             </div>
@@ -1509,6 +1559,18 @@
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+      },
+
+      /**
+       * プルダウンを「矢印つきの枠」で包んで返す。
+       * 標準の▼は幅を制御できず文字と重なるため、
+       * .select-wrap 側で矢印を描き、select には余白を持たせています。
+       */
+      wrapSelect(select) {
+        const wrap = document.createElement('span');
+        wrap.className = 'select-wrap';
+        wrap.appendChild(select);
+        return wrap;
       },
 
       /**
@@ -2367,7 +2429,7 @@
             this.renderTable();
           }
         });
-        return select;
+        return Utils.wrapSelect(select);
       },
 
       addRow() {
@@ -2579,13 +2641,15 @@
 
           // 大分類・小分類のプルダウン
           const tdMajor = document.createElement('td');
-          const majorSel = this._select(MasterPanel._majorOptions(), item.selectedMajor);
-          tdMajor.appendChild(majorSel);
+          const majorWrap = this._select(MasterPanel._majorOptions(), item.selectedMajor);
+          const majorSel = majorWrap.querySelector('select');
+          tdMajor.appendChild(majorWrap);
           tr.appendChild(tdMajor);
 
           const tdMinor = document.createElement('td');
-          const minorSel = this._select(MasterPanel._minorOptions(item.selectedMajor), item.selectedMinor);
-          tdMinor.appendChild(minorSel);
+          const minorWrap = this._select(MasterPanel._minorOptions(item.selectedMajor), item.selectedMinor);
+          const minorSel = minorWrap.querySelector('select');
+          tdMinor.appendChild(minorWrap);
           tr.appendChild(tdMinor);
 
           majorSel.addEventListener('change', () => {
@@ -2619,7 +2683,7 @@
         });
         sel.value = value || '';
         if (!sel.value) sel.classList.add('is-empty');
-        return sel;
+        return Utils.wrapSelect(sel);
       },
 
       saveRule(idx) {
@@ -2772,7 +2836,7 @@
               select.addEventListener('change', () => {
                 spec.apply(rIdx, select.value);
               });
-              td.appendChild(select);
+              td.appendChild(Utils.wrapSelect(select));
               tr.appendChild(td);
               continue;
             }
@@ -3115,7 +3179,9 @@
     const PcaCellEditors = {
       /** 空欄を選べるようにするための先頭の選択肢 */
       _blank(label) {
-        return { value: '', label: label || '（未設定 → 空欄で出力）' };
+        // 表のセルは幅が限られるため短く。意味は表の上の説明と
+        // セルの黄色表示で分かるようにしています。
+        return { value: '', label: label || '（未設定）' };
       },
 
       masters() {
