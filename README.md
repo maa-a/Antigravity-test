@@ -17,13 +17,110 @@ PCA会計向けの窓5とマスタ設定機能を追加しています。
 | `appsscript.json` | マニフェスト | 実行環境とOAuthスコープ |
 
 ### 導入手順
-1. Apps Script エディタで上記ファイル（`appsscript.json` 以外の4つ）を作成し、内容を貼り付け
-2. ⚙ プロジェクトの設定 →「`appsscript.json` マニフェスト ファイルをエディタで表示する」をON
-3. `appsscript.json` の内容を本リポジトリのもので置き換え（**Excel/スプレッドシート出力に必要なスコープが入っています**）
-4. デプロイ →「新しいデプロイ」→ 種類「ウェブアプリ」
-5. 初回アクセス時に追加の権限承認が求められます（Drive/スプレッドシートへのアクセス）
+
+**1. 既存の2ファイルは「中身を全置換」（新規作成しない）**
+
+| 既存ファイル | やること |
+|---|---|
+| `コード.gs` | 全選択して削除 → `Code.gs` の中身を貼り付け（ファイル名は「コード」のままでOK） |
+| `index.html` | 全選択して削除 → `index.html` の中身を貼り付け |
+
+**2. 「＋」→ スクリプト で2つ追加**
+
+| 入力するファイル名 | 貼り付ける内容 |
+|---|---|
+| `MasterStore` | `MasterStore.gs` |
+| `AccountMaster` | `AccountMaster.gs` |
+
+`.gs` は入力不要です（自動で付きます）。
+
+**3. `appsscript.json` を差し替え**
+⚙ プロジェクトの設定 →「`appsscript.json` マニフェスト ファイルをエディタで表示する」をON
+→ 表示されたファイルを全選択して、本リポジトリの内容で置き換え
+
+**4. デプロイ**
+デプロイ →「新しいデプロイ」→ 種類「ウェブアプリ」
+
+**5. 権限を承認**
+初回アクセス時に権限の承認画面が出ます。「許可」で進めてください。
 
 > ⚠ `appsscript.json` を更新しないと、Excel・スプレッドシート出力ボタンだけが権限エラーになります。
+
+### ファイルの並び順・名前について
+- **`.gs` の並び順は動作に影響しません。** GASは全ファイルを読み込んでから実行するため、
+  `AZ↓` で並べ替えても問題ありません。
+- **`index.html` のファイル名だけは変更できません。** コード側が
+  `createTemplateFromFile('index')` で名前を指定して呼んでいるためです。
+- ファイルを分けるのは必須ではありません。面倒なら `コード.gs` 1つに
+  `AccountMaster` → `MasterStore` → `Code` の順で全部貼っても動きます
+  （ただし後々の修正がしづらいので、分けることをおすすめします）。
+
+---
+
+## 1-2. `appsscript.json` は何を設定しているのか
+
+Apps Scriptプロジェクトの**設定ファイル**です。コードではなく、
+「このアプリをどう動かすか」をGoogleに伝える宣言書にあたります。
+普段は隠れていて、⚙ プロジェクトの設定でONにすると見えるようになります。
+
+```json
+{
+  "timeZone": "Asia/Tokyo",
+  "dependencies": {},
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "webapp": {
+    "executeAs": "USER_DEPLOYING",
+    "access": "DOMAIN"
+  },
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/script.scriptapp",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+  ]
+}
+```
+
+| 項目 | 意味 |
+|---|---|
+| `timeZone` | 日時の基準。日本時間（出力ファイル名の日付などに影響） |
+| `runtimeVersion: "V8"` | **必須。** `class` を使っているため、旧ランタイムでは構文エラーになります |
+| `executeAs: "USER_DEPLOYING"` | アプリを**デプロイした人の権限**で動かす設定 |
+| `access: "DOMAIN"` | **同じGoogle Workspaceドメインの人なら誰でも**開けます（下記参照） |
+| `oauthScopes` | このアプリが使う**権限の申請リスト**（下記） |
+
+### oauthScopes ＝ 権限の申請リスト（ここが最重要）
+
+**ここに書いていない権限は、コードが正しくても実行時に拒否されます。**
+
+| 権限 | 何に使っているか | 無いとどうなる |
+|---|---|---|
+| `script.external_request` | **Gemini APIへの通信** | AI解析が全滅（窓1・2・3・5） |
+| `script.scriptapp` | Excel変換時の認証トークン取得 | 📘Excel出力がエラー |
+| `spreadsheets` | スプレッドシートの作成・書き込み | 📗スプレッドシート出力がエラー |
+| `drive` | Excel変換と一時ファイルの削除 | 📘Excel出力がエラー |
+
+`oauthScopes` を書かなくてもAI解析が動く場合がありますが、これはGASが実行時に
+コードを見て必要な権限を**自動推測している**ためです。この推測は取りこぼしがあり、
+特に `DriveApp` と `ScriptApp.getOAuthToken()` を組み合わせるExcel出力で失敗しやすいので、
+明示的に書いておくのが確実です。
+
+### access（誰がURLを開けるか）の選択肢
+
+| 設定値 | 意味 |
+|---|---|
+| `"DOMAIN"` | **同じGoogle Workspaceドメインの人だけ**（社内利用向け。本リポジトリの既定） |
+| `"MYSELF"` | デプロイした本人のみ |
+| `"ANYONE_ANONYMOUS"` | URLを知っていれば誰でも（請求書を扱うため非推奨） |
+
+変更したい場合は該当行を書き換えて再デプロイするか、デプロイ画面の
+「アクセスできるユーザー」からでも切り替えられます。
+
+> 🔐 **Gemini APIキーはこのファイルには一切含まれません。**
+> キーはスクリプトプロパティに保存されるため、コードにもマニフェストにも残りません。
+
+> ⚠ 権限を追加した直後は、次にアプリを開いたときに**再承認画面**が出ます。正常な動作です。
 
 ---
 
