@@ -616,7 +616,7 @@ class PcaInvoiceWindow {
       '伝票日付', '伝票番号',
       '借方科目コード', '借方科目名', '借方補助コード', '借方補助名',
       '借方部門コード', '借方部門名', '借方税区分名', '借方金額',
-      '摘要文', '大分類', '小分類', '取引先', '元ファイル名'
+      '摘要文', '大分類', '小分類', '取引先', '元ファイル名', '要確認メモ'
     ];
   }
 
@@ -632,11 +632,20 @@ class PcaInvoiceWindow {
     ];
   }
 
+  /** 自社名（請求先）。ここに挙げた名称は「取引先」として採用しません。 */
+  static get OWN_COMPANY_NAMES() {
+    return ['株式会社エルティーアール', 'エルティーアール', 'LTR'];
+  }
+
   buildPrompt(customPrompt, masters) {
     const internal = (masters.internalAccounts || []);
-    // 小分類の候補一覧をプロンプトへ渡し、マスタ外の科目名を作らせない
-    const minorList = internal.map(function (a) {
-      return '・' + (a.major || '') + ' / ' + (a.minor || '');
+
+    // 大分類／小分類のペア一覧をプロンプトへ渡し、マスタ外の科目名を作らせない。
+    // 「版権元RY」のように同名の小分類が複数の大分類に存在するため、
+    // 必ずペアで選ばせます。
+    const pairList = internal.map(function (a) {
+      return '・大分類「' + (a.major || '') + '」／小分類「' + (a.minor || '') + '」'
+        + (a.section ? '（' + a.section + '）' : '');
     }).join('\n');
 
     const deptList = (masters.departments || []).map(function (d) {
@@ -645,46 +654,83 @@ class PcaInvoiceWindow {
 
     let prompt = `【最重要：請求書・領収書からの 会計仕訳データ抽出（PCA会計向け）】
 アップロードされた請求書・領収書を読み取り、下記JSONオブジェクトのみを返してください。
+印刷された請求書だけでなく、手書きの請求書やスキャン画像も対象です。
 
 ＜絶対に守る出力ルール＞
 1. 【判断できないものは必ず null】
-   ・勘定科目（小分類）が判断できない、請求書に科目の手がかりが無い場合は、必ず null を返してください。
-   ・「不明」「？」「N/A」などの文字列や、読めない文字を記号で埋めた文字列を返すことは【厳禁】です。null 以外は書かないでください。
-   ・後から人間が手入力して埋めるため、空（null）であることが正解です。
-2. 【小分類は下記リストの中からのみ選ぶ】
-   ・リストに無い科目名を新しく作ってはいけません。当てはまるものが無ければ null にしてください。
-3. 日付は必ず「YYYY/MM/DD」形式の西暦にしてください。年の記載が無い場合のみ null にしてください。
-4. 金額はカンマ・通貨記号を除いた純粋な数値のみ。
-5. Markdownの枠（\`\`\`jsonなど）や挨拶・解説は一切出力せず、純粋なJSONオブジェクトのみを返してください。
+   ・勘定科目が判断できない、請求書に手がかりが無い場合は、必ず null を返してください。
+   ・「不明」「？」「N/A」などの文字列や、読めない文字を記号で埋めた文字列を返すことは【厳禁】です。
+   ・後から人間が手入力して埋めるため、空（null）であることが正解です。推測で埋めないでください。
+2. 【科目は下記リストの「大分類＋小分類のペア」からのみ選ぶ】
+   ・major_category と minor_category は、必ず同じ1行のペアをそのまま転記してください。
+   ・リストに無い科目名を新しく作ってはいけません。当てはまるものが無ければ両方とも null。
+   ・「版権元RY」のように同じ小分類名が複数の大分類にあります。どの大分類か特定できない場合は
+     両方とも null にしてください（片方を勝手に選ばないこと）。
+3. 【数字は絶対に連結しない】
+   ・金額はカンマ・通貨記号・「円」を除いた純粋な数値のみ。
+   ・請求書番号・電話番号・登録番号・口座番号・郵便番号を金額として拾わないでください。
+   ・別々のセルに書かれた数字を1つの数値としてつなげることは【絶対禁止】です
+     （例：9,750,000 と 975,000 を 9750000975000 のようにつなげてはいけません）。
+   ・1件の金額が 100億円を超えることは通常ありません。そうなった場合は読み取りを間違えています。
+4. Markdownの枠（\`\`\`jsonなど）や挨拶・解説は一切出力せず、純粋なJSONオブジェクトのみを返してください。
 
-＜選択可能な 大分類 / 小分類 の一覧＞
-${minorList || '（マスタ未設定。すべて null で返してください）'}
+＜取引先（vendor）の判定＞
+・vendor には【請求元＝お金を受け取る側】の会社名を入れてください。
+・「${PcaInvoiceWindow.OWN_COMPANY_NAMES.join('」「')}」は当社（＝請求先・支払う側）です。
+  「御中」「様」が付いている宛先は請求先なので、絶対に vendor に入れないでください。
+・請求元は多くの場合、右上・右下の社判（角印）や振込先口座の名義の近くに記載されています。
+
+＜日付（date）の判定＞
+・必ず「YYYY/MM/DD」形式の西暦で返してください。
+・和暦の場合は西暦へ変換してください。「令和」の表記が無く数字だけの場合も和暦とみなします。
+    「8年6月30日」「R8.6.30」「令和8年6月30日」 → いずれも 2026/06/30
+    （計算式：令和 = 2018 + 和暦年。令和8年 = 2026年）
+・「請求日」「発行日」を優先します。無ければ「締切日」「締日」「売上日付」を使ってください。
+  「支払期限」「お支払期日」は使わないでください。
+・年がどこにも書かれていない場合のみ null にしてください。
+
+＜金額（net_amount / tax_amount / total_amount）の判定＞
+・net_amount   ＝ 税抜金額（「税抜額」「小計」「課税対象額」「税率別内訳の税抜金額」など）
+・tax_amount   ＝ 消費税額（「消費税」「消費税等」「税」など）
+・total_amount ＝ 税込合計（「合計（税込）」「今回請求額」「御請求額」「税込額」など）
+・【最重要】「今回請求額」「税込」と書かれた金額は税込合計です。税抜金額として扱わないでください。
+・「税率別内訳」「税率別税抜合計」の表がある場合は、そこの税抜金額と消費税額を最優先で使ってください。
+・net_amount + tax_amount = total_amount が必ず成り立つはずです。合わない場合は読み直してください。
+・読み取れなかった項目は null にしてください（他の値から計算して埋めないこと。計算はシステム側で行います）。
+
+＜明細の分け方（records の作り方）＞
+・請求書の品名（明細行）ごとに1レコードを作ってください。
+・複数ページある場合、表紙の合計だけでなく明細ページの各行を読み取ってください。
+  明細ページがある場合は、表紙の合計行をレコードにしないでください（二重計上になります）。
+・明細行ごとの消費税額が書かれていない場合は、その行の tax_amount は null にしてください。
+・「小計」「合計」「消費税」「繰越額」だけの行はレコードにしないでください。
+
+＜選択可能な 大分類 / 小分類 の一覧（この中からペアで選ぶ）＞
+${pairList || '（マスタ未設定。major_category と minor_category はすべて null で返してください）'}
 
 ＜選択可能な 部門名の一覧（該当が無ければ null）＞
 ${deptList || '（部門マスタ未設定。null で返してください）'}
 
-＜税率と消費税額＞
-・請求書に消費税額の記載があればその数値を tax_amount に入れてください。
-・税率は 10 または 8 のみ。軽減税率の記載があれば is_reduced を true にしてください。
-・税抜金額が明記されていれば net_amount、税込合計を total_amount に入れてください。
-・どちらか一方しか読み取れない場合、読み取れない方は null にしてください（計算で埋めないこと）。
+＜税率＞
+・tax_rate は 10 または 8 のみ。軽減税率（「※」印や「軽」の表記）の場合は is_reduced を true。
+・税率の記載が読み取れない場合は null にしてください。
 
 ＜出力フォーマット＞
 {
   "records": [
     {
       "date": "YYYY/MM/DD",
-      "vendor": "取引先名（請求元）",
+      "vendor": "請求元の会社名",
       "invoice_no": "請求書番号（無ければ null）",
-      "net_amount": 100000,
-      "tax_amount": 10000,
-      "total_amount": 110000,
+      "net_amount": 231000,
+      "tax_amount": 23100,
+      "total_amount": 254100,
       "tax_rate": 10,
       "is_reduced": false,
-      "major_category": "販管費",
-      "minor_category": "消耗品費",
+      "major_category": "共通",
+      "minor_category": "デザイン費",
       "department": "共通部門",
-      "description": "摘要（品目・内容）"
+      "description": "デフォルメイラスト制作費"
     }
   ]
 }`;
@@ -740,32 +786,49 @@ ${prompt}
    * マスタで解決できなかった項目は必ず '' （空欄）になります。
    */
   _normalize(rec, resolver, fileName) {
-    // --- 小分類の決定：キーワードルール > AI判断。どちらも駄目なら空欄。 ---
-    const keywordMinor = resolver.applyKeywordRule(
+    const warnings = [];
+
+    // --- 科目の決定：キーワードルール > AI判断。どちらも駄目なら空欄。 ---
+    // 科目は【大分類＋小分類のペア】で確定させます。
+    const keywordHit = resolver.applyKeywordRule(
       [rec.description, rec.vendor].filter(Boolean).join(' ')
     );
-    const minorName = keywordMinor || CsvUtil.sanitize(rec.minor_category);
-    const internal = resolver.resolveInternal(minorName);
+    const minorName = keywordHit ? keywordHit.minor : CsvUtil.sanitize(rec.minor_category);
+    const majorName = keywordHit ? keywordHit.major : CsvUtil.sanitize(rec.major_category);
+    const internal = resolver.resolveInternal(minorName, majorName);
 
-    // --- PCA勘定科目の決定：社内小分類からの紐付けのみ。無ければ空欄。 ---
+    if (!internal && minorName && resolver.isAmbiguousMinor(minorName)) {
+      // 例：「版権元RY」は飲食・物販・予約の3つに存在。大分類が分からないと確定できない。
+      warnings.push('小分類「' + minorName + '」は複数の大分類に存在するため確定できません');
+    }
+
+    // --- PCA勘定科目の決定：社内科目からの紐付けのみ。無ければ空欄。 ---
     let pcaAccount = null;
     if (internal && internal.pcaCode) {
       pcaAccount = resolver.resolvePcaAccount(internal.pcaCode);
     }
-    if (!pcaAccount && minorName) {
-      // 小分類名がそのままPCA科目名と一致するケースを救済
-      pcaAccount = resolver.resolvePcaAccount(minorName);
+    if (!pcaAccount && internal) {
+      warnings.push('社内科目「' + internal.minor + '」にPCA勘定科目が紐付いていません');
     }
 
-    const major = internal ? internal.major : CsvUtil.sanitize(rec.major_category);
-    const minor = internal ? internal.minor : (minorName || '');
+    const major = internal ? internal.major : '';
+    const minor = internal ? internal.minor : '';
 
     // --- 金額：読めた値のみを採用し、足りない分だけ算術で補完する ---
-    const total = PcaInvoiceWindow._num(rec.total_amount);
     let net = PcaInvoiceWindow._num(rec.net_amount);
     let tax = PcaInvoiceWindow._num(rec.tax_amount);
+    let total = PcaInvoiceWindow._num(rec.total_amount);
+
     if (net === null && total !== null && tax !== null) net = total - tax;
     if (tax === null && total !== null && net !== null) tax = total - net;
+    if (total === null && net !== null && tax !== null) total = net + tax;
+
+    // 税抜＋税額＝税込 が成立しない場合、税抜と税額（内訳側）を正として税込を再計算。
+    // AIが「今回請求額（税込）」を税抜として拾ってしまう事故をここで吸収します。
+    if (net !== null && tax !== null && total !== null && net + tax !== total) {
+      warnings.push('税抜+消費税(' + (net + tax) + ')と税込(' + total + ')が不一致のため税込を再計算しました');
+      total = net + tax;
+    }
 
     // --- 税区分：税率と軽減税率フラグからマスタ名を組み立てる ---
     const rate = PcaInvoiceWindow._num(rec.tax_rate);
@@ -780,13 +843,23 @@ ${prompt}
     // --- 補助科目：取引先名がマスタにあれば採用、無ければ空欄 ---
     const sub = pcaAccount ? resolver.resolveSubAccount(pcaAccount.code, rec.vendor) : null;
 
+    // --- 取引先：自社名（＝請求先）を拾ってしまっていたら空欄にする ---
+    let vendor = CsvUtil.sanitize(rec.vendor);
+    if (vendor && PcaInvoiceWindow._isOwnCompany(vendor)) {
+      warnings.push('取引先として自社名が読み取られたため空欄にしました');
+      vendor = '';
+    }
+
+    const date = PcaInvoiceWindow._normalizeDate(rec.date);
+    if (!date && rec.date) warnings.push('日付を西暦に確定できませんでした');
+
     return {
-      date:        PcaInvoiceWindow._normalizeDate(rec.date),
-      vendor:      CsvUtil.sanitize(rec.vendor),
+      date:        date,
+      vendor:      vendor,
       invoiceNo:   CsvUtil.sanitize(rec.invoice_no),
       description: CsvUtil.sanitize(rec.description),
-      major:       major || '',
-      minor:       minor || '',
+      major:       major,
+      minor:       minor,
       accountCode: pcaAccount ? String(pcaAccount.code) : '',
       accountName: pcaAccount ? pcaAccount.name : '',
       subCode:     sub ? String(sub.code) : '',
@@ -796,25 +869,83 @@ ${prompt}
       taxClass:    taxClass,
       netAmount:   net === null ? '' : net,
       taxAmount:   tax === null ? '' : tax,
-      totalAmount: total === null ? (net !== null && tax !== null ? net + tax : '') : total,
-      sourceFile:  fileName
+      totalAmount: total === null ? '' : total,
+      sourceFile:  fileName,
+      warnings:    warnings.join(' / ')
     };
   }
 
-  static _num(value) {
-    if (value === null || value === undefined || value === '') return null;
-    const n = Number(String(value).replace(/[^0-9.\-]/g, ''));
-    return isNaN(n) ? null : n;
+  /** 自社名（請求先）かどうか。取引先として採用しないための判定。 */
+  static _isOwnCompany(name) {
+    const key = AccountResolver.normalize(name);
+    return PcaInvoiceWindow.OWN_COMPANY_NAMES.some(function (own) {
+      const ownKey = AccountResolver.normalize(own);
+      return ownKey && key.indexOf(ownKey) !== -1;
+    });
   }
 
-  /** "YYYY/MM/DD" へ寄せる。判定できない場合は空欄（推測しない）。 */
+  /** 1件の金額として現実的な上限。これを超えたら読み取り失敗とみなします。 */
+  static get MAX_AMOUNT() { return 1e11; }
+
+  /**
+   * 金額の数値化。
+   * ⚠ 桁の連結事故（別セルの数字がつながって 833,111,791,313,101 のような
+   *   巨大な値になる）を検出したら、推測で直さず null（＝空欄）にします。
+   */
+  static _num(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const cleaned = String(value).replace(/[,，\s　円¥￥]/g, '');
+    const n = Number(cleaned.replace(/[^0-9.\-]/g, ''));
+    if (!isFinite(n)) return null;
+    if (Math.abs(n) > PcaInvoiceWindow.MAX_AMOUNT) return null;
+    return n;
+  }
+
+  /** 元号ごとの「西暦 = 元号元年の前年」。和暦N年 → BASE + N。 */
+  static get ERA_BASE() {
+    return { '令和': 2018, 'R': 2018, '平成': 1988, 'H': 1988, '昭和': 1925, 'S': 1925 };
+  }
+
+  /**
+   * "YYYY/MM/DD" へ寄せる。判定できない場合は空欄（推測しない）。
+   *
+   * 手書き請求書では「8年6月30日」のように元号を省いた和暦がよく使われるため、
+   * 1〜2桁の年は和暦（令和）として西暦に変換します。
+   *   例：8年6月30日 → 2026/06/30（2018 + 8）
+   * 4桁の年はそのまま西暦として扱います。
+   */
   static _normalizeDate(value) {
     if (!value) return '';
-    const s = CsvUtil.sanitize(value).replace(/[.\-年月]/g, '/').replace(/日/g, '');
-    const m = s.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
-    if (!m) return '';
+    const raw = CsvUtil.sanitize(value);
     const pad = function (n) { return ('0' + n).slice(-2); };
-    return m[1] + '/' + pad(m[2]) + '/' + pad(m[3]);
+
+    // 元号表記あり（令和8年6月30日 / R8.6.30 / 令和08-06-30）
+    const eraMatch = raw.match(/(令和|平成|昭和|[RHS])\s*(\d{1,2})\s*[年.\-\/]\s*(\d{1,2})\s*[月.\-\/]\s*(\d{1,2})/);
+    if (eraMatch) {
+      const base = PcaInvoiceWindow.ERA_BASE[eraMatch[1]];
+      if (base) {
+        return (base + parseInt(eraMatch[2], 10)) + '/' + pad(eraMatch[3]) + '/' + pad(eraMatch[4]);
+      }
+    }
+
+    const s = raw.replace(/[.\-年月]/g, '/').replace(/日/g, '');
+
+    // 西暦4桁
+    const western = s.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+    if (western) return western[1] + '/' + pad(western[2]) + '/' + pad(western[3]);
+
+    // 元号記号なしの1〜2桁年は令和とみなす（手書き請求書の「8年6月30日」など）
+    const wareki = s.match(/^\/?(\d{1,2})\/(\d{1,2})\/(\d{1,2})\/?$/);
+    if (wareki) {
+      const y = parseInt(wareki[1], 10);
+      const mo = parseInt(wareki[2], 10);
+      const d = parseInt(wareki[3], 10);
+      if (y >= 1 && y <= 99 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+        return (PcaInvoiceWindow.ERA_BASE['令和'] + y) + '/' + pad(mo) + '/' + pad(d);
+      }
+    }
+
+    return '';
   }
 
   /**
@@ -853,7 +984,7 @@ ${prompt}
         e.accountCode, e.accountName, e.subCode, e.subName,
         e.deptCode, e.deptName, e.taxClass,
         e.netAmount === '' ? '' : e.netAmount,
-        e.description, e.major, e.minor, e.vendor, e.sourceFile
+        e.description, e.major, e.minor, e.vendor, e.sourceFile, e.warnings || ''
       ]);
 
       // 仮払消費税等 行（税額が読み取れた場合のみ）
@@ -863,7 +994,7 @@ ${prompt}
           '191', '仮払消費税等', '', '',
           e.deptCode, e.deptName, e.taxClass,
           e.taxAmount,
-          e.description, '資産', '仮払消費税等', e.vendor, e.sourceFile
+          e.description, '資産', '仮払消費税等', e.vendor, e.sourceFile, ''
         ]);
       }
     });

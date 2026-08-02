@@ -173,116 +173,126 @@ var MasterSeed = {
   },
 
   /**
-   * 社内管理科目マスタ（社内財務管理表「PL（詳細）」D列＝大分類／E列＝小分類）
+   * 社内管理科目マスタ
+   * ―― 社内財務管理表「PL（詳細）」シートの D列（大分類）／E列（小分類）由来
    * ------------------------------------------------------------------
-   * ⚠ 初期値は暫定です。
-   *   実際の「PL（詳細）」シートの D〜E 列を、画面の【⚙ マスタ設定 →
-   *   社内管理科目】に貼り付けて上書きしてください（3列目に対応するPCA
-   *   勘定科目コードを入れると、会計事務所用CSVへの変換まで自動化されます）。
-   * ------------------------------------------------------------------
+   * 2026年度LTR財務管理表の「PL（詳細）」シートから抽出した実データです。
+   * ・売上総利益セクションは計算値のため科目には含めていません。
+   * ・原価セクションのグループ小計行（飲食／物販／予約／共通の見出し行）も
+   *   科目ではないため除外しています。
+   *
+   * ⚠ 「版権元RY」は 飲食・物販・予約 の3つの大分類に存在します。
+   *   そのため科目の識別キーは【大分類＋小分類のペア】です（小分類だけでは
+   *   一意に決まりません）。AIにもペアで返させています。
+   *
+   * section : PL上のセクション（売上／原価／販管費）
    * major   : 大分類（PL（詳細）D列）
    * minor   : 小分類（PL（詳細）E列）
    * pcaCode : 対応するPCA勘定科目コード（空文字なら会計事務所用CSVでは空欄出力）
+   *
+   * ＜PCA科目コードが空欄の6科目について＞
+   *   本部人件費／福利厚生費／教育研修費／販売促進費／衛生管理費／その他収入支出
+   *   これらは現行のPCA勘定科目マスタ（79科目）に対応する科目が存在しません。
+   *   意図的に空欄にしてあり、会計事務所用CSVでは科目欄が空欄で出力されます。
+   *   紐付け先が決まったら、画面の【⚙ 勘定科目マスタ設定】から3列目にコードを
+   *   足してください（コードの書き換えは不要です）。
    */
   INTERNAL_ACCOUNTS: [
-    { major: "資産", minor: "現金", pcaCode: "111" },
-    { major: "資産", minor: "当座預金", pcaCode: "112" },
-    { major: "資産", minor: "普通預金", pcaCode: "113" },
-    { major: "資産", minor: "受取手形", pcaCode: "120" },
-    { major: "資産", minor: "電子記録債権", pcaCode: "121" },
-    { major: "資産", minor: "売掛金", pcaCode: "130" },
-    { major: "資産", minor: "有価証券", pcaCode: "131" },
-    { major: "資産", minor: "商品(受託)", pcaCode: "133" },
-    { major: "資産", minor: "商品(見込)", pcaCode: "134" },
-    { major: "資産", minor: "仕掛品", pcaCode: "135" },
-    { major: "資産", minor: "貯蔵品", pcaCode: "136" },
-    { major: "資産", minor: "前渡金", pcaCode: "140" },
-    { major: "資産", minor: "前払費用", pcaCode: "150" },
-    { major: "資産", minor: "未収入金", pcaCode: "160" },
-    { major: "資産", minor: "未収利息", pcaCode: "161" },
-    { major: "資産", minor: "未収消費税等", pcaCode: "163" },
-    { major: "資産", minor: "仮払金", pcaCode: "171" },
-    { major: "資産", minor: "仮払税金", pcaCode: "172" },
-    { major: "資産", minor: "仮払消費税等", pcaCode: "191" },
-    { major: "資産", minor: "建物", pcaCode: "200" },
-    { major: "資産", minor: "建物付属設備", pcaCode: "201" },
-    { major: "資産", minor: "機械装置", pcaCode: "203" },
-    { major: "資産", minor: "工具器具備品", pcaCode: "205" },
-    { major: "資産", minor: "リース資産", pcaCode: "209" },
-    { major: "資産", minor: "ソフトウェア", pcaCode: "213" },
-    { major: "資産", minor: "ｿﾌﾄｳｪｱ仮勘定", pcaCode: "214" },
-    { major: "資産", minor: "建物減償累計額", pcaCode: "224" },
-    { major: "資産", minor: "建付減償累計額", pcaCode: "225" },
-    { major: "資産", minor: "工備減償累計額", pcaCode: "226" },
-    { major: "資産", minor: "機装減償累計額", pcaCode: "228" },
-    { major: "資産", minor: "敷金保証金", pcaCode: "244" },
-    { major: "資産", minor: "長期前払費用", pcaCode: "245" },
-    { major: "資産", minor: "繰延税金資産", pcaCode: "246" },
-    { major: "資産", minor: "開発費", pcaCode: "301" },
-    { major: "負債", minor: "未払法人税等", pcaCode: "328" },
-    { major: "負債", minor: "仮受消費税等", pcaCode: "335" },
-    { major: "負債", minor: "買掛金", pcaCode: "400" },
-    { major: "負債", minor: "短期借入金", pcaCode: "410" },
-    { major: "負債", minor: "未払金", pcaCode: "420" },
-    { major: "負債", minor: "前受金", pcaCode: "440" },
-    { major: "負債", minor: "預り金", pcaCode: "441" },
-    { major: "負債", minor: "仮受金", pcaCode: "442" },
-    { major: "負債", minor: "未払費用", pcaCode: "444" },
-    { major: "負債", minor: "未払消費税等", pcaCode: "445" },
-    { major: "負債", minor: "リース債務", pcaCode: "450" },
-    { major: "純資産", minor: "資本金", pcaCode: "600" },
-    { major: "売粗", minor: "売上高", pcaCode: "700" },
-    { major: "売粗", minor: "売上原価", pcaCode: "710" },
-    { major: "販管費", minor: "運賃", pcaCode: "741" },
-    { major: "販管費", minor: "広告宣伝費", pcaCode: "742" },
-    { major: "販管費", minor: "採用費", pcaCode: "743" },
-    { major: "販管費", minor: "旅費交通費", pcaCode: "745" },
-    { major: "販管費", minor: "通信費", pcaCode: "746" },
-    { major: "販管費", minor: "水道光熱費", pcaCode: "747" },
-    { major: "販管費", minor: "租税公課", pcaCode: "748" },
-    { major: "販管費", minor: "接待交際費", pcaCode: "749" },
-    { major: "販管費", minor: "寄付金", pcaCode: "750" },
-    { major: "販管費", minor: "消耗品費", pcaCode: "752" },
-    { major: "販管費", minor: "修繕費", pcaCode: "753" },
-    { major: "販管費", minor: "保険料", pcaCode: "754" },
-    { major: "販管費", minor: "システム関連費", pcaCode: "755" },
-    { major: "販管費", minor: "支払手数料", pcaCode: "756" },
-    { major: "販管費", minor: "業務委託・ｺﾝｻﾙ", pcaCode: "758" },
-    { major: "販管費", minor: "店舗人件費", pcaCode: "759" },
-    { major: "販管費", minor: "送金手数料", pcaCode: "760" },
-    { major: "販管費", minor: "減価償却費", pcaCode: "763" },
-    { major: "販管費", minor: "会費", pcaCode: "766" },
-    { major: "販管費", minor: "地代家賃", pcaCode: "767" },
-    { major: "販管費", minor: "会議費", pcaCode: "769" },
-    { major: "販管費", minor: "新聞図書費", pcaCode: "771" },
-    { major: "販管費", minor: "保管料", pcaCode: "772" },
-    { major: "販管費", minor: "リース料", pcaCode: "773" },
-    { major: "販管費", minor: "雑費", pcaCode: "774" },
-    { major: "営業外", minor: "受取利息", pcaCode: "800" },
-    { major: "営業外", minor: "雑収入", pcaCode: "803" },
-    { major: "営業外", minor: "支払利息", pcaCode: "810" },
-    { major: "営業外", minor: "雑損失", pcaCode: "813" },
-    { major: "営業外", minor: "法人住民事業税", pcaCode: "912" },
-    { major: "営業外", minor: "法人税等調整額", pcaCode: "913" }
+    { section: "売上",      major: "飲食",                        minor: "飲食",                                  pcaCode: "700" },
+    { section: "売上",      major: "物販",                        minor: "物販",                                  pcaCode: "700" },
+    { section: "売上",      major: "予約",                        minor: "予約",                                  pcaCode: "700" },
+    { section: "売上",      major: "その他",                       minor: "その他",                                 pcaCode: "700" },
+    { section: "原価",      major: "飲食",                        minor: "食材原価",                                pcaCode: "710" },
+    { section: "原価",      major: "飲食",                        minor: "版権元RY",                               pcaCode: "710" },
+    { section: "原価",      major: "飲食",                        minor: "BBV飲食フィー",                            pcaCode: "710" },
+    { section: "原価",      major: "物販",                        minor: "商品原価（レッグスフィー含む）",                     pcaCode: "710" },
+    { section: "原価",      major: "物販",                        minor: "評価減（レッグスフィー含む）",                      pcaCode: "710" },
+    { section: "原価",      major: "物販",                        minor: "物販付随原価",                              pcaCode: "710" },
+    { section: "原価",      major: "物販",                        minor: "物流費",                                 pcaCode: "710" },
+    { section: "原価",      major: "物販",                        minor: "プロパー原価",                              pcaCode: "710" },
+    { section: "原価",      major: "物販",                        minor: "版権元RY",                               pcaCode: "710" },
+    { section: "原価",      major: "物販",                        minor: "物販販売手数料",                             pcaCode: "710" },
+    { section: "原価",      major: "予約",                        minor: "予約特典原価",                              pcaCode: "710" },
+    { section: "原価",      major: "予約",                        minor: "版権元RY",                               pcaCode: "710" },
+    { section: "原価",      major: "予約",                        minor: "レッグス＋HVCフィー",                         pcaCode: "710" },
+    { section: "原価",      major: "予約",                        minor: "BBV予約フィー",                            pcaCode: "710" },
+    { section: "原価",      major: "予約",                        minor: "サーバー費",                               pcaCode: "710" },
+    { section: "原価",      major: "共通",                        minor: "MG",                                  pcaCode: "710" },
+    { section: "原価",      major: "共通",                        minor: "MG相殺分",                               pcaCode: "710" },
+    { section: "原価",      major: "共通",                        minor: "BBV固定費",                              pcaCode: "710" },
+    { section: "原価",      major: "共通",                        minor: "版権使用料",                               pcaCode: "710" },
+    { section: "原価",      major: "共通",                        minor: "ノベルティ原価",                             pcaCode: "710" },
+    { section: "原価",      major: "共通",                        minor: "デザイン費",                               pcaCode: "710" },
+    { section: "原価",      major: "共通",                        minor: "AWS使用料",                              pcaCode: "710" },
+    { section: "原価",      major: "共通",                        minor: "施工装飾費",                               pcaCode: "710" },
+    { section: "原価",      major: "共通",                        minor: "その他雑費",                               pcaCode: "710" },
+    { section: "販管費",     major: "本部人件費",                     minor: "本部人件費",                               pcaCode: "" },
+    { section: "販管費",     major: "福利厚生費",                     minor: "福利厚生費",                               pcaCode: "" },
+    { section: "販管費",     major: "教育研修費",                     minor: "教育研修費",                               pcaCode: "" },
+    { section: "販管費",     major: "旅費交通費",                     minor: "旅費交通費",                               pcaCode: "745" },
+    { section: "販管費",     major: "通信費",                       minor: "通信費",                                 pcaCode: "746" },
+    { section: "販管費",     major: "運賃",                        minor: "運賃",                                  pcaCode: "741" },
+    { section: "販管費",     major: "広告宣伝費",                     minor: "広告宣伝費",                               pcaCode: "742" },
+    { section: "販管費",     major: "接待交際費",                     minor: "接待交際費",                               pcaCode: "749" },
+    { section: "販管費",     major: "会議費",                       minor: "会議費",                                 pcaCode: "769" },
+    { section: "販管費",     major: "販売促進費",                     minor: "販売促進費",                               pcaCode: "" },
+    { section: "販管費",     major: "水道光熱費",                     minor: "水道光熱費",                               pcaCode: "747" },
+    { section: "販管費",     major: "消耗品費",                      minor: "消耗品費",                                pcaCode: "752" },
+    { section: "販管費",     major: "租税公課",                      minor: "租税公課",                                pcaCode: "748" },
+    { section: "販管費",     major: "新聞図書費",                     minor: "新聞図書費",                               pcaCode: "771" },
+    { section: "販管費",     major: "店舗人件費",                     minor: "店舗人件費",                               pcaCode: "759" },
+    { section: "販管費",     major: "業務委託費",                     minor: "業務委託費",                               pcaCode: "758" },
+    { section: "販管費",     major: "保管料",                       minor: "保管料",                                 pcaCode: "772" },
+    { section: "販管費",     major: "採用費",                       minor: "採用費",                                 pcaCode: "743" },
+    { section: "販管費",     major: "システム関連費",                   minor: "システム関連費",                             pcaCode: "755" },
+    { section: "販管費",     major: "衛生管理費",                     minor: "衛生管理費",                               pcaCode: "" },
+    { section: "販管費",     major: "クレジット手数料",                  minor: "クレジット手数料",                            pcaCode: "756" },
+    { section: "販管費",     major: "支払手数料",                     minor: "支払手数料",                               pcaCode: "756" },
+    { section: "販管費",     major: "支払手数料（経営指導料）",              minor: "支払手数料（経営指導料）",                        pcaCode: "756" },
+    { section: "販管費",     major: "リース料",                      minor: "リース料",                                pcaCode: "773" },
+    { section: "販管費",     major: "賃借料",                       minor: "賃借料",                                 pcaCode: "767" },
+    { section: "販管費",     major: "保険料",                       minor: "保険料",                                 pcaCode: "754" },
+    { section: "販管費",     major: "修繕費",                       minor: "修繕費",                                 pcaCode: "753" },
+    { section: "販管費",     major: "寄付金",                       minor: "寄付金",                                 pcaCode: "750" },
+    { section: "販管費",     major: "雑費",                        minor: "雑費",                                  pcaCode: "774" },
+    { section: "販管費",     major: "減価償却費",                     minor: "減価償却費",                               pcaCode: "763" },
+    { section: "販管費",     major: "その他収入支出",                   minor: "その他収入支出",                             pcaCode: "" },
   ],
 
   /**
-   * 摘要キーワード → 小分類 の自動仕分けルール（任意）
+   * 摘要キーワード → 科目（大分類＋小分類）の自動仕分けルール
+   * ------------------------------------------------------------------
    * AIの判断より優先して適用されます。ここに無いものはAI判断、
    * AIも判断できない場合は「空欄」で出力します。
+   *
+   * ⚠ 小分類は大分類とセットで指定してください（「版権元RY」のように
+   *   複数の大分類に存在する小分類があるためです）。
+   *
+   * 初期値は、いただいた見本請求書と一般的な取引から機械的に置いた
+   * 【たたき台】です。実際の運用ルールに合わせて画面から編集してください。
    */
   KEYWORD_RULES: [
-    { keyword: 'Amazon',      minor: '消耗品費' },
-    { keyword: 'アマゾン',     minor: '消耗品費' },
-    { keyword: 'JR',          minor: '旅費交通費' },
-    { keyword: 'タクシー',     minor: '旅費交通費' },
-    { keyword: 'ETC',         minor: '旅費交通費' },
-    { keyword: 'NTT',         minor: '通信費' },
-    { keyword: 'ソフトバンク', minor: '通信費' },
-    { keyword: 'ドコモ',       minor: '通信費' },
-    { keyword: 'au',          minor: '通信費' },
-    { keyword: '電力',         minor: '水道光熱費' },
-    { keyword: '東京ガス',     minor: '水道光熱費' },
-    { keyword: '水道',         minor: '水道光熱費' }
+    { keyword: 'Amazon',        major: '消耗品費',   minor: '消耗品費' },
+    { keyword: 'アマゾン',       major: '消耗品費',   minor: '消耗品費' },
+    { keyword: 'JR',            major: '旅費交通費', minor: '旅費交通費' },
+    { keyword: 'タクシー',       major: '旅費交通費', minor: '旅費交通費' },
+    { keyword: 'ETC',           major: '旅費交通費', minor: '旅費交通費' },
+    { keyword: '新幹線',         major: '旅費交通費', minor: '旅費交通費' },
+    { keyword: 'NTT',           major: '通信費',     minor: '通信費' },
+    { keyword: 'ソフトバンク',   major: '通信費',     minor: '通信費' },
+    { keyword: 'ドコモ',         major: '通信費',     minor: '通信費' },
+    { keyword: 'KDDI',          major: '通信費',     minor: '通信費' },
+    { keyword: '電力',           major: '水道光熱費', minor: '水道光熱費' },
+    { keyword: '東京ガス',       major: '水道光熱費', minor: '水道光熱費' },
+    { keyword: '水道局',         major: '水道光熱費', minor: '水道光熱費' },
+    { keyword: 'AWS',           major: '共通',       minor: 'AWS使用料' },
+    { keyword: 'Amazon Web Services', major: '共通', minor: 'AWS使用料' },
+    { keyword: '画稿費',         major: '共通',       minor: 'デザイン費' },
+    { keyword: 'イラスト制作費', major: '共通',       minor: 'デザイン費' },
+    { keyword: 'デザイン費',     major: '共通',       minor: 'デザイン費' },
+    { keyword: '版権使用料',     major: '共通',       minor: '版権使用料' },
+    { keyword: 'ノベルティ',     major: '共通',       minor: 'ノベルティ原価' },
+    { keyword: '施工',           major: '共通',       minor: '施工装飾費' },
+    { keyword: '装飾',           major: '共通',       minor: '施工装飾費' }
   ]
 };

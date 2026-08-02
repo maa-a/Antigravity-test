@@ -105,21 +105,37 @@ class MasterStore {
 
   /**
    * 社内管理科目（社内財務管理表「PL（詳細）」D列＝大分類／E列＝小分類）の取り込み。
-   * 期待する列：[大分類, 小分類, (任意)PCA勘定科目コード]
+   * 期待する列：[大分類, 小分類, (任意)PCA勘定科目コード, (任意)セクション]
+   *
+   * 「PL（詳細）」のD列は結合セル（グループ見出し行にだけ値が入り、
+   * 明細行は空欄）になっているため、D列が空の行は直前のD列の値を
+   * 引き継ぎます（Excelから貼り付けたそのままの形で取り込めます）。
+   * E列が空の行は、D列の値をそのまま小分類として扱います。
    */
   static importInternalAccounts(text) {
     const rows = MasterStore.parsePastedTable(text);
     const list = [];
     const seen = {};
+    let lastMajor = '';
+
     rows.forEach(function (cols) {
-      const major = cols[0] || '';
-      const minor = cols[1] || '';
-      if (!major && !minor) return;
+      const major = (cols[0] || '').trim() || lastMajor;
+      if (!major) return;
+      lastMajor = major;
+
+      const minor = (cols[1] || '').trim() || major;
       const dedupeKey = major + '||' + minor;
       if (seen[dedupeKey]) return;
       seen[dedupeKey] = true;
-      list.push({ major: major, minor: minor, pcaCode: (cols[2] || '').trim() });
+
+      list.push({
+        section: (cols[3] || '').trim(),
+        major: major,
+        minor: minor,
+        pcaCode: (cols[2] || '').trim()
+      });
     });
+
     if (list.length === 0) {
       throw new Error('取り込める行がありませんでした。D列（大分類）とE列（小分類）を含めて貼り付けてください。');
     }
@@ -184,9 +200,30 @@ class AccountResolver {
       this._pcaByCode[String(a.code).trim()] = a;
     }, this);
 
-    this._internalByMinor = {};
+    // 科目の識別キーは【大分類＋小分類のペア】。
+    // 「版権元RY」のように、同じ小分類名が複数の大分類に存在するためです。
+    this._internalByPair = {};
+    // 小分類名が全科目を通じて一意なものだけ、名前だけでも引けるようにする。
+    // 重複する小分類名は、大分類が分からないと確定できないので登録しません
+    // （＝当てずっぽうで拾わない＝空欄になる）。
+    const minorCount = {};
     (this.masters.internalAccounts || []).forEach(function (a) {
-      if (a.minor) this._internalByMinor[AccountResolver.normalize(a.minor)] = a;
+      if (!a.minor) return;
+      const k = AccountResolver.normalize(a.minor);
+      minorCount[k] = (minorCount[k] || 0) + 1;
+    });
+
+    this._internalByMinor = {};
+    this._ambiguousMinors = {};
+    (this.masters.internalAccounts || []).forEach(function (a) {
+      if (!a.minor) return;
+      const minorKey = AccountResolver.normalize(a.minor);
+      this._internalByPair[AccountResolver.normalize(a.major) + '||' + minorKey] = a;
+      if (minorCount[minorKey] === 1) {
+        this._internalByMinor[minorKey] = a;
+      } else {
+        this._ambiguousMinors[minorKey] = true;
+      }
     }, this);
 
     this._deptByName = {};
@@ -228,10 +265,28 @@ class AccountResolver {
     return null;
   }
 
-  /** 社内管理科目（小分類）から解決。見つからなければ null。 */
-  resolveInternal(minorName) {
+  /**
+   * 社内管理科目を解決。
+   * 1) 大分類＋小分類のペアで一致 → 確定
+   * 2) 小分類だけで一致し、その小分類名が全科目で一意 → 確定
+   * 3) 小分類名が複数の大分類に存在する（例：版権元RY）のに大分類が
+   *    分からない → null（＝空欄）。当てずっぽうで片方を選びません。
+   */
+  resolveInternal(minorName, majorName) {
     if (!minorName) return null;
-    return this._internalByMinor[AccountResolver.normalize(minorName)] || null;
+    const minorKey = AccountResolver.normalize(minorName);
+
+    if (majorName) {
+      const pair = this._internalByPair[AccountResolver.normalize(majorName) + '||' + minorKey];
+      if (pair) return pair;
+    }
+    return this._internalByMinor[minorKey] || null;
+  }
+
+  /** その小分類名が複数の大分類に存在する（＝大分類なしでは確定できない）か。 */
+  isAmbiguousMinor(minorName) {
+    if (!minorName) return false;
+    return !!this._ambiguousMinors[AccountResolver.normalize(minorName)];
   }
 
   /** 部門を解決。見つからなければ null。 */
@@ -265,8 +320,8 @@ class AccountResolver {
   }
 
   /**
-   * 摘要文からキーワードルールで小分類を推定。該当なしなら null。
-   * AIの判断より優先して適用します（社内ルールを固定化するため）。
+   * 摘要文からキーワードルールで科目を推定し、{ major, minor } を返す。
+   * 該当なしなら null。AIの判断より優先して適用します（社内ルールの固定化）。
    */
   applyKeywordRule(description) {
     if (!description) return null;
@@ -274,7 +329,9 @@ class AccountResolver {
     const rules = this.masters.keywordRules || [];
     for (let i = 0; i < rules.length; i++) {
       const kw = AccountResolver.normalize(rules[i].keyword);
-      if (kw && target.indexOf(kw) !== -1) return rules[i].minor;
+      if (kw && target.indexOf(kw) !== -1) {
+        return { major: rules[i].major || '', minor: rules[i].minor || '' };
+      }
     }
     return null;
   }
