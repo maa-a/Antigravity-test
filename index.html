@@ -780,6 +780,29 @@
     /* 空欄セル（科目不明）を目立たせる。CSVには空欄のまま出力されます。 */
     .cell-blank { background-color: #fffbeb !important; }
 
+    /* 表内のプルダウン（科目・部門・税区分などの選択セル） */
+    .cell-select { padding: 4px 6px; }
+
+    .cell-dropdown {
+      width: 100%;
+      min-width: 150px;
+      max-width: 260px;
+      padding: 5px 7px;
+      border: 1px solid #cfe3f5;
+      border-radius: 8px;
+      font-size: 0.92em;
+      font-family: inherit;
+      background: #fff;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .cell-dropdown:hover { border-color: var(--accent-blue); }
+    .cell-dropdown:focus { outline: none; border-color: var(--accent-blue); box-shadow: 0 0 0 2px rgba(2,132,199,0.15); }
+
+    /* 未設定（空欄で出力される）セルは黄色く目立たせる */
+    .cell-dropdown.is-empty { background: #fffbeb; border-color: #fcd34d; }
+
     .cell-input {
       width: 100%;
       padding: 4px 6px;
@@ -1301,6 +1324,10 @@
             後から人の手で書き換える前提の仕様です。セルをダブルクリックすればその場で入力できます。<br>
             🟠 <strong>オレンジ色の行</strong>は「要確認メモ」が付いた行です。日付を西暦に確定できなかった、
             税抜＋消費税と税込が合わなかった、大分類が特定できず科目を確定できなかった、などの理由が記載されています。<br>
+            ▼ <strong>勘定科目・補助科目・部門・税区分・大分類・小分類はプルダウンから選べます。</strong>
+            コードと名称は連動するので、どちらか一方を選べば両方入ります。
+            <strong>会計のコードが分からない場合は「大分類」→「小分類」を選んでください。</strong>
+            マスタの紐付けに従って、勘定科目コードと科目名が自動で入ります。<br>
             ※「社内用」と「会計事務所用」は上のボタンで切り替えられ、それぞれ別のレイアウトで出力されます。<br>
             ※ 科目は<strong>「PL（詳細）」の大分類＋小分類のペア</strong>で判定します。一覧に無い科目をAIが作ることはありません。
           </span>
@@ -2637,8 +2664,45 @@
           for (let cIdx = 0; cIdx < opts.headers.length; cIdx++) {
             const value = row[cIdx];
             const td = document.createElement('td');
-            td.className = 'cell-editable';
             const text = (value === null || value === undefined) ? '' : String(value);
+
+            // その列に「選択肢」が定義されていればプルダウンにする。
+            // 会計知識がなくても、マスタにある正しい科目から選ぶだけで済みます。
+            const spec = opts.cellEditor ? opts.cellEditor(cIdx, row, rIdx) : null;
+
+            if (spec && spec.kind === 'select') {
+              td.className = 'cell-select';
+              if (text === '') td.classList.add('cell-blank');
+
+              const select = document.createElement('select');
+              select.className = 'cell-dropdown';
+              if (text === '') select.classList.add('is-empty');
+
+              const options = spec.options || [];
+              options.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.value;
+                opt.textContent = o.label;
+                select.appendChild(opt);
+              });
+              // マスタに無い値が入っていても消さない（手入力・旧データの保護）
+              if (text !== '' && !options.some(o => String(o.value) === text)) {
+                const opt = document.createElement('option');
+                opt.value = text;
+                opt.textContent = text + '（マスタ外）';
+                select.appendChild(opt);
+              }
+              select.value = text;
+
+              select.addEventListener('change', () => {
+                spec.apply(rIdx, select.value);
+              });
+              td.appendChild(select);
+              tr.appendChild(td);
+              continue;
+            }
+
+            td.className = 'cell-editable';
             td.textContent = text;
             // 空欄（＝科目が判定できなかった箇所）を色で示す。CSVには空欄のまま出ます。
             if (text === '') td.classList.add('cell-blank');
@@ -2870,6 +2934,221 @@
     };
 
     // ==================================================================
+    // PcaCellEditors：窓5のプレビュー表で「どの列をプルダウンにするか」の定義。
+    // ------------------------------------------------------------------
+    // 会計知識がない担当者でも、マスタに登録された正しい科目から
+    // 選ぶだけで入力できるようにするための仕組みです。
+    //
+    // ・科目コードと科目名は連動します（片方を選ぶともう片方も入る）
+    // ・補助科目は、選んでいる勘定科目に紐づくものだけが候補に出ます
+    // ・大分類を変えると、小分類の候補もその大分類のものだけに絞られます
+    // ・マスタに無い値が入っていても消しません（手入力の保護）
+    // ==================================================================
+    const PcaCellEditors = {
+      /** 空欄を選べるようにするための先頭の選択肢 */
+      _blank(label) {
+        return { value: '', label: label || '（未設定 → 空欄で出力）' };
+      },
+
+      masters() {
+        return MasterPanel.masters || {};
+      },
+
+      /** 勘定科目の選択肢。「コード 科目名」で表示します。 */
+      accountOptions(byName) {
+        const list = this.masters().pcaAccounts || [];
+        return [this._blank()].concat(list.map(a => ({
+          value: byName ? a.name : String(a.code),
+          label: a.code + ' ' + a.name
+        })));
+      },
+
+      departmentOptions(byName) {
+        const list = this.masters().departments || [];
+        return [this._blank()].concat(list.map(d => ({
+          value: byName ? d.name : String(d.code),
+          label: d.code + ' ' + d.name
+        })));
+      },
+
+      taxOptions() {
+        const list = this.masters().taxClasses || [];
+        return [this._blank()].concat(list.map(t => ({ value: t, label: t })));
+      },
+
+      /** 指定した勘定科目コードに紐づく補助科目だけを候補にします。 */
+      subOptions(accountCode, byName) {
+        const map = (this.masters().subAccounts || {});
+        const list = map[String(accountCode || '').trim()] || [];
+        return [this._blank('（補助なし）')].concat(list.map(pair => ({
+          value: byName ? pair[1] : String(pair[0]),
+          label: pair[0] + ' ' + pair[1]
+        })));
+      },
+
+      majorOptions() {
+        const seen = {};
+        const list = [];
+        (this.masters().internalAccounts || []).forEach(a => {
+          if (a.major && !seen[a.major]) { seen[a.major] = true; list.push({ value: a.major, label: a.major }); }
+        });
+        return [this._blank()].concat(list);
+      },
+
+      minorOptions(major) {
+        const list = (this.masters().internalAccounts || [])
+          .filter(a => !major || a.major === major)
+          .map(a => ({ value: a.minor, label: a.minor }));
+        return [this._blank()].concat(list);
+      },
+
+      /** 勘定科目コード／名のどちらかが選ばれたら、対になる列も一緒に更新します。 */
+      _applyAccount(rows, rIdx, headers, codeCol, nameCol, chosen, byName) {
+        const list = this.masters().pcaAccounts || [];
+        const hit = list.filter(a => (byName ? a.name : String(a.code)) === chosen)[0];
+        rows[rIdx][codeCol] = hit ? String(hit.code) : (byName ? rows[rIdx][codeCol] : chosen);
+        if (nameCol !== -1) rows[rIdx][nameCol] = hit ? hit.name : (byName ? chosen : '');
+        if (!chosen) {
+          rows[rIdx][codeCol] = '';
+          if (nameCol !== -1) rows[rIdx][nameCol] = '';
+        }
+      },
+
+      _applyDepartment(rows, rIdx, codeCol, nameCol, chosen, byName) {
+        const list = this.masters().departments || [];
+        const hit = list.filter(d => (byName ? d.name : String(d.code)) === chosen)[0];
+        rows[rIdx][codeCol] = hit ? String(hit.code) : (byName ? rows[rIdx][codeCol] : chosen);
+        if (nameCol !== -1) rows[rIdx][nameCol] = hit ? hit.name : (byName ? chosen : '');
+        if (!chosen) {
+          rows[rIdx][codeCol] = '';
+          if (nameCol !== -1) rows[rIdx][nameCol] = '';
+        }
+      },
+
+      _applySub(rows, rIdx, accountCodeCol, codeCol, nameCol, chosen, byName) {
+        const map = (this.masters().subAccounts || {});
+        const list = map[String(rows[rIdx][accountCodeCol] || '').trim()] || [];
+        const hit = list.filter(pair => (byName ? pair[1] : String(pair[0])) === chosen)[0];
+        rows[rIdx][codeCol] = hit ? String(hit[0]) : (byName ? rows[rIdx][codeCol] : chosen);
+        if (nameCol !== -1) rows[rIdx][nameCol] = hit ? hit[1] : (byName ? chosen : '');
+        if (!chosen) {
+          rows[rIdx][codeCol] = '';
+          if (nameCol !== -1) rows[rIdx][nameCol] = '';
+        }
+      },
+
+      /**
+       * ヘッダー名から、その列のプルダウン定義を返します。
+       * 定義が無い列は今まで通りダブルクリックで自由入力できます。
+       */
+      build(headers, rows, onAfterChange) {
+        const idx = name => headers.indexOf(name);
+        const self = this;
+
+        // 列名 → 定義。借方・貸方の両方に同じ仕組みを当てます。
+        const accountPairs = [
+          { code: idx('借方科目コード'), name: idx('借方科目名'), sub: idx('借方補助コード'), subName: idx('借方補助名') },
+          { code: idx('貸方科目コード'), name: idx('貸方科目名'), sub: idx('貸方補助コード'), subName: idx('貸方補助名') }
+        ].filter(g => g.code !== -1);
+
+        const deptPairs = [
+          { code: idx('借方部門コード'), name: idx('借方部門名') },
+          { code: idx('貸方部門コード'), name: idx('貸方部門名') }
+        ].filter(g => g.code !== -1);
+
+        const taxCols = ['借方税区分名', '貸方税区分名'].map(idx).filter(i => i !== -1);
+        const majorCol = idx('大分類');
+        const minorCol = idx('小分類');
+
+        return function (cIdx, row, rIdx) {
+          const done = () => { if (onAfterChange) onAfterChange(); };
+
+          for (const g of accountPairs) {
+            if (cIdx === g.code || cIdx === g.name) {
+              const byName = (cIdx === g.name);
+              return {
+                kind: 'select',
+                options: self.accountOptions(byName),
+                apply(r, value) {
+                  self._applyAccount(rows, r, headers, g.code, g.name, value, byName);
+                  // 科目が変われば補助科目の候補も変わるので、いったん空にする
+                  if (g.sub !== -1) rows[r][g.sub] = '';
+                  if (g.subName !== -1) rows[r][g.subName] = '';
+                  done();
+                }
+              };
+            }
+            if (cIdx === g.sub || cIdx === g.subName) {
+              const byName = (cIdx === g.subName);
+              return {
+                kind: 'select',
+                options: self.subOptions(row[g.code], byName),
+                apply(r, value) {
+                  self._applySub(rows, r, g.code, g.sub, g.subName, value, byName);
+                  done();
+                }
+              };
+            }
+          }
+
+          for (const g of deptPairs) {
+            if (cIdx === g.code || cIdx === g.name) {
+              const byName = (cIdx === g.name);
+              return {
+                kind: 'select',
+                options: self.departmentOptions(byName),
+                apply(r, value) {
+                  self._applyDepartment(rows, r, g.code, g.name, value, byName);
+                  done();
+                }
+              };
+            }
+          }
+
+          if (taxCols.indexOf(cIdx) !== -1) {
+            return {
+              kind: 'select',
+              options: self.taxOptions(),
+              apply(r, value) { rows[r][cIdx] = value; done(); }
+            };
+          }
+
+          if (cIdx === majorCol) {
+            return {
+              kind: 'select',
+              options: self.majorOptions(),
+              apply(r, value) {
+                rows[r][majorCol] = value;
+                if (minorCol !== -1) rows[r][minorCol] = '';   // 大分類が変われば小分類は選び直し
+                done();
+              }
+            };
+          }
+
+          if (cIdx === minorCol) {
+            return {
+              kind: 'select',
+              options: self.minorOptions(majorCol !== -1 ? row[majorCol] : ''),
+              apply(r, value) {
+                rows[r][minorCol] = value;
+                // 小分類が決まれば、対応するPCA勘定科目も自動で入れる
+                const internal = (self.masters().internalAccounts || []).filter(a =>
+                  a.minor === value && (majorCol === -1 || !rows[r][majorCol] || a.major === rows[r][majorCol]))[0];
+                if (internal && internal.pcaCode) {
+                  const g = accountPairs[0];
+                  if (g) self._applyAccount(rows, r, headers, g.code, g.name, String(internal.pcaCode), false);
+                }
+                done();
+              }
+            };
+          }
+
+          return null;
+        };
+      }
+    };
+
+    // ==================================================================
     // PcaPreview：窓5専用のプレビュー・出力。
     // 複数ファイル分の明細を蓄積し、社内用／会計事務所用を切り替えて
     // 1つのCSV・Excel・スプレッドシートに出力します。
@@ -2960,6 +3239,11 @@
               tr.style.background = '#fff7ed';
             }
           },
+          // 科目・部門・税区分・大分類/小分類はマスタからのプルダウン選択にする
+          cellEditor: PcaCellEditors.build(this.table.headers, this.table.rows, () => {
+            this.edited = true;
+            this.render();
+          }),
           onEdit: (rIdx, cIdx, val) => {
             this.table.rows[rIdx][cIdx] = val;
             this.edited = true;
