@@ -42,47 +42,111 @@
       position: relative;
     }
 
-    .key-settings-container {
-      position: absolute;
+    /* ================================================================
+       ヘッダー（画面上部に固定）
+       ---------------------------------------------------------------
+       旧版は設定パネルを position:absolute で右上に浮かせていたため、
+       窓が増えて折り返すと窓カードの上に重なって操作できなくなりました。
+       ヘッダーを通常フローの固定バーにし、設定は「ポップオーバー」に
+       格納することで、窓が何枚に増えても重なりません。
+       ================================================================ */
+    .app-header {
+      position: sticky;
       top: 0;
-      right: 0;
-      text-align: right;
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 10px;
+      z-index: 500;
+      background: rgba(244, 250, 254, 0.92);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--card-border);
+      margin: -24px -20px 28px;
+      padding: 14px 20px;
     }
 
-    .key-toggle-btn {
-      background: linear-gradient(135deg, #0c2340, #14314f);
-      color: #eaf4fb;
-      border: none;
-      padding: 9px 16px;
+    .app-header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand { text-align: left; }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.5em;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(120deg, var(--primary-color) 25%, var(--accent-blue) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      white-space: nowrap;
+    }
+
+    .brand .subtitle {
+      color: var(--text-sub);
+      margin: 2px 0 0;
+      font-size: 0.72em;
+      font-weight: 500;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* ポップオーバー（ボタンを押したときだけ開く設定パネル） */
+    .popover-wrap { position: relative; }
+
+    .toolbar-btn {
+      background: #ffffff;
+      color: #1e3a5f;
+      border: 1px solid var(--card-border);
+      padding: 9px 14px;
       border-radius: 12px;
       font-size: 0.8em;
       font-weight: 700;
-      letter-spacing: 0.02em;
       cursor: pointer;
-      box-shadow: 0 4px 10px -3px rgba(12,35,64,0.4);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      white-space: nowrap;
+      transition: background 0.15s ease, border-color 0.15s ease;
     }
 
-    .key-toggle-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 14px -3px rgba(12,35,64,0.45);
+    .toolbar-btn:hover { background: #f0f8ff; border-color: var(--accent-blue-soft); }
+
+    .toolbar-btn.is-open {
+      background: linear-gradient(135deg, #0c2340, #14314f);
+      color: #eaf4fb;
+      border-color: transparent;
     }
 
-    .key-box {
+    .toolbar-btn.primary {
+      background: linear-gradient(135deg, #0c2340, #14314f);
+      color: #eaf4fb;
+      border-color: transparent;
+    }
+
+    .toolbar-btn.primary:hover { filter: brightness(1.15); }
+
+    .popover {
       display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 600;
       background: #ffffff;
-      padding: 18px;
+      padding: 16px;
       border-radius: 16px;
-      box-shadow: 0 14px 30px -10px rgba(2,132,199,0.25), 0 4px 10px -4px rgba(2,132,199,0.12);
+      box-shadow: 0 18px 36px -12px rgba(2,132,199,0.3), 0 4px 10px -4px rgba(2,132,199,0.15);
       border: 1px solid var(--card-border);
       text-align: left;
-      width: 290px;
+      width: 300px;
     }
+
+    .popover.open { display: block; }
 
     .key-box-label {
       font-size: 0.75em;
@@ -107,16 +171,6 @@
       outline: none;
       border-color: var(--accent-blue);
       background: #ffffff;
-    }
-
-    .model-standalone-box {
-      background: #ffffff;
-      padding: 12px 14px;
-      border-radius: 16px;
-      box-shadow: 0 10px 24px -8px rgba(2,132,199,0.18), 0 3px 8px -3px rgba(2,132,199,0.08);
-      border: 1px solid var(--card-border);
-      text-align: left;
-      width: 290px;
     }
 
     .model-select-label {
@@ -146,11 +200,10 @@
     }
 
     .model-desc {
-      font-size: 0.68em;
+      font-size: 0.72em;
       color: var(--text-sub);
-      line-height: 1.4;
-      margin-top: 6px;
-      min-height: 2.2em;
+      line-height: 1.5;
+      margin-top: 8px;
     }
 
     .key-save-btn {
@@ -172,35 +225,72 @@
       transform: translateY(-1px);
     }
 
-    .header-group {
-      margin-bottom: 44px;
-      padding-top: 10px;
+    /* ================================================================
+       窓カードのレイアウト
+       ---------------------------------------------------------------
+       固定幅 flex から CSS Grid の auto-fill へ変更。
+       窓が5枚でも10枚でも、画面幅に応じて自動で列数が決まり、
+       カード同士やヘッダーと重なることがありません。
+       窓を増やすときは JS の WINDOW_DEFS に1件足すだけです。
+       ================================================================ */
+    .window-section { margin-bottom: 30px; }
+
+    /* 窓カードの分類チップ */
+    .chip {
+      display: inline-block;
+      font-size: 0.66em;
+      font-weight: 700;
+      color: #33556f;
+      background: #eef6fc;
+      border: 1px solid #d3e8f7;
+      border-radius: 999px;
+      padding: 3px 9px;
+      margin-bottom: 9px;
+      white-space: nowrap;
     }
 
-    h1 {
-      margin: 0;
-      font-size: 2.7em;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      padding-bottom: 6px;
-      background: linear-gradient(120deg, var(--primary-color) 25%, var(--accent-blue) 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
+    /* グループごとの補足説明（グリッドの下にまとめて表示） */
+    .section-legend {
+      margin-top: 16px;
+      background: #f6fbfe;
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      text-align: left;
     }
 
-    .subtitle {
-      color: var(--text-sub);
-      margin-top: 10px;
-      font-size: 0.95em;
-      font-weight: 500;
-    }
-
-    .drop-wrapper {
+    .legend-row {
       display: flex;
-      gap: 18px;
-      justify-content: center;
+      align-items: baseline;
+      gap: 10px;
+      padding: 3px 0;
       flex-wrap: wrap;
+    }
+
+    .legend-row .chip { margin-bottom: 0; }
+    .legend-desc { font-size: 0.78em; color: var(--text-sub); line-height: 1.6; }
+
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin: 0 0 12px 2px;
+      text-align: left;
+      flex-wrap: wrap;
+    }
+
+    .section-title {
+      font-size: 0.95em;
+      font-weight: 800;
+      color: var(--primary-color);
+    }
+
+    .section-desc { font-size: 0.78em; color: var(--text-sub); }
+
+    .window-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+      gap: 18px;
       align-items: stretch;
       text-align: left;
       width: 100%;
@@ -210,7 +300,6 @@
       background: var(--card-bg);
       border-radius: 22px;
       padding: 22px 20px 20px;
-      width: 260px;
       box-shadow: 0 10px 24px -8px rgba(2,132,199,0.14), 0 3px 8px -3px rgba(2,132,199,0.08);
       border: 1px solid var(--card-border);
       display: flex;
@@ -219,6 +308,7 @@
       transition: transform 0.25s ease, box-shadow 0.25s ease;
       position: relative;
       overflow: hidden;
+      min-width: 0;
     }
 
     .card::before {
@@ -356,6 +446,9 @@
       box-shadow: 0 4px 10px -3px rgba(2,132,199,0.15);
     }
 
+    /* 既定：カードのアクセント色。窓を増やしてもCSSの追記なしで色が付きます */
+    .send-btn:not(:disabled) { background: var(--card-accent, var(--accent-blue)); }
+
     .send-btn.ready-cash { background: linear-gradient(135deg, var(--accent-blue), var(--accent-blue-soft)); }
     .send-btn.ready-smart_credit { background: linear-gradient(135deg, var(--accent-purple), #818cf8); }
     .send-btn.ready-credit { background: linear-gradient(135deg, var(--accent-orange), #fbbf24); }
@@ -441,6 +534,77 @@
     .log-error { color: #f87171; }
     .log-translate-note { color: #93c5fd; font-style: italic; }
     .hidden-input { display: none; }
+
+    /* 窓カードの番号バッジ */
+    .card-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 7px;
+      background: var(--card-accent, var(--accent-blue));
+      color: #fff;
+      font-size: 0.72em;
+      font-weight: 800;
+      margin-right: 7px;
+      flex: 0 0 auto;
+    }
+
+    .card-title-row { display: flex; align-items: flex-start; margin-bottom: 12px; }
+
+    /* ログは「窓」ではないので、グリッドから出して全幅の折りたたみパネルに */
+    .log-panel {
+      width: 100%;
+      background: linear-gradient(160deg, #0c2338, #14314f);
+      border: 1px solid #1c3d5c;
+      border-radius: 22px;
+      padding: 18px 20px;
+      color: #e2e8f0;
+      text-align: left;
+      margin-bottom: 24px;
+    }
+
+    .log-panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .log-panel-title {
+      font-size: 0.95em;
+      font-weight: 800;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .log-panel-actions { display: flex; gap: 8px; }
+
+    .log-body { margin-top: 12px; }
+    .log-body.collapsed { display: none; }
+
+    .log-container { height: 190px; }
+
+    .log-foot {
+      font-size: 0.7em;
+      color: #94a3b8;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    /* 画面が狭いときはヘッダーを縦積みにして、ポップオーバーを画面幅に収める */
+    @media (max-width: 720px) {
+      .app-header-inner { flex-direction: column; align-items: stretch; }
+      .brand h1 { font-size: 1.25em; white-space: normal; }
+      .toolbar { justify-content: flex-start; }
+      .popover { width: min(300px, calc(100vw - 48px)); right: auto; left: 0; }
+      .window-grid { grid-template-columns: 1fr; }
+    }
+
 
     .preview-section {
       width: 100%;
@@ -942,146 +1106,76 @@
     </div>
   </div>
 
+  <!-- ================================================================
+       ヘッダー：タイトルと各種設定。設定はポップオーバーに格納しており、
+       窓が何枚に増えてもカードと重なりません。
+       ================================================================ -->
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div class="brand">
+        <h1>AI Accounting Converter</h1>
+        <p class="subtitle">V8.10 - 文字化け修正 ／ PCA会計 仕訳変換窓 ／ Excel・スプレッドシート出力対応</p>
+      </div>
+
+      <div class="toolbar">
+        <div class="popover-wrap">
+          <button class="toolbar-btn primary" data-popover="pop-key">🔑 APIキー</button>
+          <div id="pop-key" class="popover">
+            <label class="key-box-label">各自のGemini APIキーを入力:</label>
+            <input type="password" id="user-api-key" class="key-input" placeholder="AIzaSy...">
+            <button class="key-save-btn" onclick="saveApiKey()">キーを保存</button>
+          </div>
+        </div>
+
+        <button class="toolbar-btn" onclick="MasterPanel.toggle()">⚙ 勘定科目マスタ設定</button>
+
+        <div class="popover-wrap">
+          <button class="toolbar-btn" data-popover="pop-model">🤖 モデル</button>
+          <div id="pop-model" class="popover">
+            <label class="model-select-label">使用するGeminiモデル</label>
+            <select id="gemini-model-select" class="model-select">
+              <option value="gemini-3.5-flash-lite">3.5 Flash-Lite</option>
+              <option value="gemini-3.6-flash">3.6 Flash</option>
+            </select>
+            <div id="model-desc" class="model-desc"></div>
+          </div>
+        </div>
+
+        <div class="popover-wrap">
+          <button class="toolbar-btn" data-popover="pop-encoding">💾 文字コード</button>
+          <div id="pop-encoding" class="popover">
+            <label class="model-select-label">CSVの文字コード</label>
+            <select id="encoding-select" class="model-select">
+              <option value="SJIS">Shift-JIS（弥生・PCAのPC版向け／既定）</option>
+              <option value="UTF8BOM">UTF-8 BOM付き（Excel・スプレッドシート向け）</option>
+            </select>
+            <div class="model-desc">
+              文字化けが出る場合はこちらを切り替えてください。丸数字（①）や機種依存文字はShift-JISに存在しないため、UTF-8を推奨します。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
   <div class="container">
-    <div class="key-settings-container">
-      <button class="key-toggle-btn" onclick="toggleKeyBox()">🔑 Gemini APIキー設定</button>
-      <div id="key-box" class="key-box">
-        <label class="key-box-label">各自のGemini APIキーを入力:</label>
-        <input type="password" id="user-api-key" class="key-input" placeholder="AIzaSy...">
-        <button class="key-save-btn" onclick="saveApiKey()">キーを保存</button>
-      </div>
+    <!-- 窓カードは JS の WINDOW_DEFS から自動生成します（窓の追加はそこに1件足すだけ） -->
+    <div id="window-sections"></div>
 
-      <button class="master-toggle-btn" onclick="MasterPanel.toggle()">⚙ 勘定科目マスタ設定</button>
-
-      <div class="model-standalone-box">
-        <label class="model-select-label">🤖 使用するGeminiモデル</label>
-        <select id="gemini-model-select" class="model-select">
-          <option value="gemini-3.5-flash-lite">3.5 Flash-Lite</option>
-          <option value="gemini-3.6-flash">3.6 Flash</option>
-        </select>
-        <div id="model-desc" class="model-desc"></div>
-      </div>
-
-      <div class="model-standalone-box">
-        <label class="model-select-label">💾 CSVの文字コード</label>
-        <select id="encoding-select" class="model-select">
-          <option value="SJIS">Shift-JIS（弥生・PCAのPC版向け／既定）</option>
-          <option value="UTF8BOM">UTF-8 BOM付き（Excel・スプレッドシート向け）</option>
-        </select>
-        <div class="model-desc">
-          文字化けが出る場合はこちらを切り替えてください。丸数字（①）や機種依存文字はShift-JISに存在しないため、UTF-8を推奨します。
+    <!-- ログは「窓」ではないので、グリッドから出して全幅パネルにしています -->
+    <div class="log-panel">
+      <div class="log-panel-head">
+        <span class="log-panel-title">📜 ログ履歴</span>
+        <div class="log-panel-actions">
+          <button id="log-toggle" class="log-clear-btn">折りたたむ</button>
+          <button id="log-clear" class="log-clear-btn">クリア</button>
         </div>
       </div>
-    </div>
-
-    <div class="header-group">
-      <h1>AI Accounting Converter</h1>
-      <p class="subtitle">V8.00 - 文字化け修正 ／ PCA会計 仕訳変換窓 ／ Excel・スプレッドシート出力対応</p>
-    </div>
-
-    <div class="drop-wrapper">
-      <div class="card" style="--card-accent: var(--accent-blue);">
-        <div>
-          <span class="title" style="color:var(--accent-blue)"> 1. 通帳・現金出納帳<br><small style="font-size:0.75em; font-weight:500;">(スマート取引取込用)</small></span>
-          <div id="drop-cash" class="drop-zone">ファイルをドロップ</div>
-          <div class="file-info-container">
-            <div id="file-info-cash" class="file-info">選択されていません</div>
-            <button id="clear-cash" class="clear-btn">取消</button>
-          </div>
-          <div class="prompt-container">
-            <label class="prompt-label"> AIへの追加指示（任意）</label>
-            <textarea id="prompt-cash" class="prompt-input" rows="2" placeholder="例: 入金のみ抽出して、など"></textarea>
-          </div>
+      <div id="log-body" class="log-body">
+        <div id="log-container" class="log-container">
+          <div class="log-item" style="color: #64748b;">[待機中...]</div>
         </div>
-        <div>
-          <button id="btn-cash" class="send-btn" disabled>スマート取込用CSV出力</button>
-          <div id="status-cash" class="status"></div>
-        </div>
-      </div>
-
-      <div class="card" style="--card-accent: var(--accent-purple);">
-        <div>
-          <span class="title" style="color:var(--accent-purple)"> 2. クレジット明細<br><small style="font-size:0.75em; font-weight:500;">(スマート取引取込用)</small></span>
-          <div id="drop-smart_credit" class="drop-zone">ファイルをドロップ</div>
-          <div class="file-info-container">
-            <div id="file-info-smart_credit" class="file-info">選択されていません</div>
-            <button id="clear-smart_credit" class="clear-btn">取消</button>
-          </div>
-          <div class="prompt-container">
-            <label class="prompt-label"> AIへの追加指示（任意）</label>
-            <textarea id="prompt-smart_credit" class="prompt-input" rows="2" placeholder="例: 特定の店舗を除外、など"></textarea>
-          </div>
-        </div>
-        <div>
-          <button id="btn-smart_credit" class="send-btn" disabled>スマート取込用CSV出力</button>
-          <div id="status-smart_credit" class="status"></div>
-        </div>
-      </div>
-
-      <div class="card" style="--card-accent: var(--accent-orange);">
-        <div>
-          <span class="title" style="color:var(--accent-orange)"> 3. クレジット明細<br><small style="font-size:0.75em; font-weight:500;">(弥生インポート用・前処理)</small></span>
-          <div id="drop-credit" class="drop-zone">ファイルをドロップ</div>
-          <div class="file-info-container">
-            <div id="file-info-credit" class="file-info">選択されていません</div>
-            <button id="clear-credit" class="clear-btn">取消</button>
-          </div>
-          <div class="prompt-container">
-            <label class="prompt-label"> AIへの追加指示（任意）</label>
-            <textarea id="prompt-credit" class="prompt-input" rows="2" placeholder="例: 1月の利用分だけ抽出、など"></textarea>
-          </div>
-        </div>
-        <div>
-          <button id="btn-credit" class="send-btn" disabled>変換用CSV出力</button>
-          <div id="status-credit" class="status"></div>
-        </div>
-      </div>
-
-      <div class="card" style="--card-accent: var(--accent-green); background-color: #fafefc; border: 1px solid #cdf2e0;">
-        <div>
-          <span class="title" style="color:var(--accent-green)"> 4. 弥生仕訳変換窓<br><small style="font-size:0.75em; font-weight:500;">(窓3のファイルをドロップ)</small></span>
-          <div id="drop-yayoi" class="drop-zone" style="border-color: #cdf2e0; background: #ffffff;">変換用CSVをドロップ</div>
-          <div class="file-info-container">
-            <div id="file-info-yayoi" class="file-info">落とすと即時変換されます</div>
-          </div>
-          <div id="status-yayoi" class="status"></div>
-        </div>
-        <div style="font-size: 0.7em; color: var(--text-sub); text-align: left; margin-top: 10px; background: #f0fdf6; padding: 8px; border-radius: 10px; border: 1px solid #dcf7e6; line-height: 1.4;">
-          <strong> 使い方:</strong> 「窓3」で書き出したCSVファイルをここに落とすと、PCデスクトップ版の弥生会計にそのまま取り込める【仕訳インポート用CSV】に一発でダイレクト変換します。
-        </div>
-      </div>
-
-      <div class="card" style="--card-accent: var(--accent-teal); background-color: #fafdfd; border: 1px solid #ccf0ec;">
-        <div>
-          <span class="title" style="color:var(--accent-teal)"> 5. PCA会計 仕訳変換窓<br><small style="font-size:0.75em; font-weight:500;">(請求書・領収書／複数まとめて1CSV)</small></span>
-          <div id="drop-pca" class="drop-zone" style="border-color: #ccf0ec; background: #ffffff;">請求書を何枚でもドロップ</div>
-          <div class="file-info-container">
-            <div id="file-info-pca" class="file-info">選択されていません</div>
-            <button id="clear-pca" class="clear-btn">全消去</button>
-          </div>
-          <div id="pca-file-list" class="pca-file-list"></div>
-          <div class="prompt-container">
-            <label class="prompt-label"> AIへの追加指示（任意）</label>
-            <textarea id="prompt-pca" class="prompt-input" rows="2" placeholder="例: 部門は共通部門で固定、など"></textarea>
-          </div>
-        </div>
-        <div>
-          <button id="btn-pca" class="send-btn" disabled>まとめてAI解析</button>
-          <div id="status-pca" class="status"></div>
-        </div>
-      </div>
-
-      <div class="card log-card">
-        <div>
-          <div class="log-header-box">
-            <span class="title" style="color:#38bdf8; margin-bottom: 0;"> ログ履歴</span>
-            <button id="log-clear" class="log-clear-btn">クリア</button>
-          </div>
-          <div id="log-container" class="log-container">
-            <div class="log-item" style="color: #64748b;">[待機中...]</div>
-          </div>
-        </div>
-        <div style="font-size: 0.7em; color: #94a3b8; text-align: left; margin-top: 10px; line-height: 1.4;">
+        <div class="log-foot">
           ※画面をリロードするとログは自動クリアされます。エラー発生時は自動で翻訳・要約が追記されます。
         </div>
       </div>
@@ -1250,11 +1344,6 @@
     <div class="footer">© 2026 AI Accounting Converter</div>
   </div>
 
-  <input type="file" id="input-cash" class="hidden-input" accept="image/*,application/pdf">
-  <input type="file" id="input-smart_credit" class="hidden-input" accept="image/*,application/pdf">
-  <input type="file" id="input-credit" class="hidden-input" accept="image/*,application/pdf">
-  <input type="file" id="input-yayoi" class="hidden-input" accept=".csv">
-  <input type="file" id="input-pca" class="hidden-input" accept="image/*,application/pdf" multiple>
 
   <script>
     // ==================================================================
@@ -1415,11 +1504,6 @@
       document.getElementById('lock-screen').style.display = 'none';
     }
 
-    function toggleKeyBox() {
-      const box = document.getElementById('key-box');
-      box.style.display = (box.style.display === 'block') ? 'none' : 'block';
-    }
-
     function toggleLogicDetails() {
       const content = document.getElementById('logic-collapsible');
       const icon = document.getElementById('toggle-icon');
@@ -1436,13 +1520,14 @@
       const key = document.getElementById('user-api-key').value.trim();
       google.script.run.withSuccessHandler(function() {
         LogPanel.add('APIキーをスクリプト内に安全に保存しました', 'success');
-        document.getElementById('key-box').style.display = 'none';
+        Popover.closeAll();
       }).setUserApiKey(key);
     }
 
     function clearAllCardStatuses() {
-      ['cash', 'smart_credit', 'credit', 'yayoi', 'pca'].forEach(type => {
-        const statusElem = document.getElementById('status-' + type);
+      // 対象の窓は WINDOW_DEFS から取得するので、窓を増やしても書き漏れません
+      WINDOW_DEFS.forEach(def => {
+        const statusElem = document.getElementById('status-' + def.type);
         if (statusElem) {
           statusElem.innerText = '';
           statusElem.className = 'status';
@@ -1507,6 +1592,331 @@
     document.getElementById('log-clear').addEventListener('click', () => {
       document.getElementById('log-container').innerHTML = '<div class="log-item" style="color: #64748b;">[クリアされました]</div>';
     });
+
+    // ログは全幅パネルなので、邪魔なときは折りたためるようにしています
+    document.getElementById('log-toggle').addEventListener('click', function () {
+      const body = document.getElementById('log-body');
+      const collapsed = body.classList.toggle('collapsed');
+      this.textContent = collapsed ? '開く' : '折りたたむ';
+    });
+
+    // ==================================================================
+    // WINDOW_DEFS：画面に並べる「窓」の定義
+    // ------------------------------------------------------------------
+    // 窓カードのHTMLはここから自動生成されます。
+    // 【窓を1つ増やすときは、この配列に1件足すだけです】
+    // カードの並び・折り返し・幅はCSS Grid が自動調整するため、
+    // 何枚に増えてもレイアウトが崩れたり重なったりしません。
+    //
+    // section     : 見出しのグループ名（同じ文字列のものが1ブロックにまとまる）
+    // sectionDesc : 見出しの説明（そのグループの先頭の定義だけ使われます）
+    // type        : DOMのid接尾辞。controller が getElementById('drop-' + type) 等で参照
+    // kind        : 'ai'    … ファイルを1枚選んでボタンでAI解析（窓1〜3）
+    //               'multi' … 複数枚まとめてAI解析（窓5）
+    //               'local' … サーバーを呼ばずブラウザ内で即変換（窓4）
+    // accent      : カード上端のアクセント色（CSS変数）
+    // ==================================================================
+    const WINDOW_DEFS = [
+      {
+        section: 'スマート取引取込用（弥生）',
+        sectionDesc: '弥生のスマート取引取込にそのまま渡せるCSVを作ります。',
+        type: 'cash', num: 1, kind: 'ai',
+        title: '通帳・現金出納帳', subtitle: '(スマート取引取込用)',
+        accent: 'var(--accent-blue)', titleColor: 'var(--accent-blue)',
+        accept: 'image/*,application/pdf',
+        dropLabel: 'ファイルをドロップ',
+        promptPlaceholder: '例: 入金のみ抽出して、など',
+        buttonLabel: 'スマート取込用CSV出力',
+        gasFunctionName: 'processCash', label: '窓1(スマート通帳)', isPreviewType: true
+      },
+      {
+        section: 'スマート取引取込用（弥生）',
+        type: 'smart_credit', num: 2, kind: 'ai',
+        title: 'クレジット明細', subtitle: '(スマート取引取込用)',
+        accent: 'var(--accent-purple)', titleColor: 'var(--accent-purple)',
+        accept: 'image/*,application/pdf',
+        dropLabel: 'ファイルをドロップ',
+        promptPlaceholder: '例: 特定の店舗を除外、など',
+        buttonLabel: 'スマート取込用CSV出力',
+        gasFunctionName: 'processSmartCredit', label: '窓2(スマートクレカ)', isPreviewType: true
+      },
+      {
+        section: '弥生インポート用',
+        sectionDesc: '窓3でCSVを書き出し、それを窓4に落とすと弥生の仕訳インポート用CSVになります。',
+        type: 'credit', num: 3, kind: 'ai',
+        title: 'クレジット明細', subtitle: '(弥生インポート用・前処理)',
+        accent: 'var(--accent-orange)', titleColor: 'var(--accent-orange)',
+        accept: 'image/*,application/pdf',
+        dropLabel: 'ファイルをドロップ',
+        promptPlaceholder: '例: 1月の利用分だけ抽出、など',
+        buttonLabel: '変換用CSV出力',
+        gasFunctionName: 'processCredit', label: '窓3(弥生変換用クレカ)', isPreviewType: false
+      },
+      {
+        section: '弥生インポート用',
+        type: 'yayoi', num: 4, kind: 'local',
+        title: '弥生仕訳変換窓', subtitle: '(窓3のファイルをドロップ)',
+        accent: 'var(--accent-green)', titleColor: 'var(--accent-green)',
+        cardStyle: 'background-color:#fafefc; border:1px solid #cdf2e0;',
+        dropStyle: 'border-color:#cdf2e0; background:#ffffff;',
+        accept: '.csv',
+        label: '窓4(弥生仕訳変換)',
+        dropLabel: '変換用CSVをドロップ',
+        infoLabel: '落とすと即時変換されます',
+        note: '<strong>使い方:</strong> 「窓3」で書き出したCSVファイルをここに落とすと、PCデスクトップ版の弥生会計にそのまま取り込める【仕訳インポート用CSV】に一発でダイレクト変換します。',
+        noteStyle: 'background:#f0fdf6; border:1px solid #dcf7e6;'
+      },
+      {
+        section: 'PCA会計用',
+        sectionDesc: '請求書・領収書を何枚でもまとめて読み込み、1つのCSVにします。社内用／会計事務所用を切り替えて出力できます。',
+        type: 'pca', num: 5, kind: 'multi',
+        title: 'PCA会計 仕訳変換窓', subtitle: '(請求書・領収書／複数まとめて1CSV)',
+        accent: 'var(--accent-teal)', titleColor: 'var(--accent-teal)',
+        cardStyle: 'background-color:#fafdfd; border:1px solid #ccf0ec;',
+        dropStyle: 'border-color:#ccf0ec; background:#ffffff;',
+        accept: 'image/*,application/pdf', multiple: true,
+        label: '窓5(PCA仕訳)',
+        dropLabel: '請求書を何枚でもドロップ',
+        clearLabel: '全消去',
+        promptPlaceholder: '例: 部門は共通部門で固定、など',
+        buttonLabel: 'まとめてAI解析'
+      }
+
+      // ------------------------------------------------------------------
+      // 【今後の追加予定】EDIから出力される日報データ（売上）の取り込み窓
+      // 下のコメントを外し、Code.gs 側に処理を1つ追加すれば、この位置に
+      // 「売上」セクションと窓6のカードが自動で並びます。
+      // レイアウト側の変更は一切不要です。
+      // ------------------------------------------------------------------
+      // ,{
+      //   section: '売上（EDI日報）',
+      //   sectionDesc: 'EDIから出力される日報データを売上仕訳に変換します。',
+      //   type: 'edi', num: 6, kind: 'multi',
+      //   title: 'EDI日報 売上取込', subtitle: '(日報データ／複数まとめて1CSV)',
+      //   accent: '#e11d48', titleColor: '#e11d48',
+      //   accept: '.csv,.txt,image/*,application/pdf', multiple: true,
+      //   dropLabel: '日報データをドロップ',
+      //   clearLabel: '全消去',
+      //   promptPlaceholder: '例: 店舗コードで部門を割り当てて、など',
+      //   buttonLabel: 'まとめてAI解析'
+      // }
+    ];
+
+    // ==================================================================
+    // WindowCardRenderer：WINDOW_DEFS からカードのHTMLを組み立てる。
+    // 生成するidは従来と同一（drop-xxx / input-xxx / btn-xxx …）なので、
+    // 各コントローラー側のコードは一切変更していません。
+    // ==================================================================
+    const WindowCardRenderer = {
+      render() {
+        const host = document.getElementById('window-sections');
+        host.innerHTML = '';
+
+        // 窓は1つのグリッドにまとめて並べます。
+        // グループ分けは「分類チップ」で示すので、窓が少ないときに
+        // 横方向が余ることも、増えたときに崩れることもありません。
+        const grid = document.createElement('div');
+        grid.className = 'window-grid';
+        WINDOW_DEFS.forEach(def => grid.appendChild(this._buildCard(def)));
+        host.appendChild(grid);
+
+        // 各グループの説明文はグリッドの下にまとめて出します
+        const seen = {};
+        const notes = [];
+        WINDOW_DEFS.forEach(def => {
+          if (def.sectionDesc && !seen[def.section]) {
+            seen[def.section] = true;
+            notes.push({ name: def.section, desc: def.sectionDesc });
+          }
+        });
+        if (notes.length) {
+          const box = document.createElement('div');
+          box.className = 'section-legend';
+          notes.forEach(n => {
+            const row = document.createElement('div');
+            row.className = 'legend-row';
+            const tag = document.createElement('span');
+            tag.className = 'chip';
+            tag.textContent = n.name;
+            const desc = document.createElement('span');
+            desc.className = 'legend-desc';
+            desc.textContent = n.desc;
+            row.appendChild(tag);
+            row.appendChild(desc);
+            box.appendChild(row);
+          });
+          host.appendChild(box);
+        }
+      },
+
+      _buildCard(def) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.setAttribute('style', '--card-accent: ' + def.accent + ';' + (def.cardStyle || ''));
+
+        const top = document.createElement('div');
+
+        // 分類チップ（どの業務グループの窓かを示す）
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = def.section;
+        top.appendChild(chip);
+
+        // タイトル（番号バッジつき）
+        const titleRow = document.createElement('div');
+        titleRow.className = 'card-title-row';
+        const badge = document.createElement('span');
+        badge.className = 'card-num';
+        badge.textContent = def.num;
+        const titleText = document.createElement('span');
+        titleText.className = 'title';
+        titleText.style.color = def.titleColor;
+        titleText.style.marginBottom = '0';
+        titleText.innerHTML = this._escape(def.title) +
+          '<br><small style="font-size:0.75em; font-weight:500;">' + this._escape(def.subtitle) + '</small>';
+        titleRow.appendChild(badge);
+        titleRow.appendChild(titleText);
+        top.appendChild(titleRow);
+
+        // ドロップゾーン
+        const zone = document.createElement('div');
+        zone.id = 'drop-' + def.type;
+        zone.className = 'drop-zone';
+        if (def.dropStyle) zone.setAttribute('style', def.dropStyle);
+        zone.textContent = def.dropLabel;
+        top.appendChild(zone);
+
+        // ファイル情報＋取消ボタン
+        const infoWrap = document.createElement('div');
+        infoWrap.className = 'file-info-container';
+        const info = document.createElement('div');
+        info.id = 'file-info-' + def.type;
+        info.className = 'file-info';
+        info.textContent = def.infoLabel || '選択されていません';
+        infoWrap.appendChild(info);
+
+        if (def.kind !== 'local') {
+          const clear = document.createElement('button');
+          clear.id = 'clear-' + def.type;
+          clear.className = 'clear-btn';
+          clear.textContent = def.clearLabel || '取消';
+          infoWrap.appendChild(clear);
+        }
+        top.appendChild(infoWrap);
+
+        // 複数ファイル窓のファイル一覧
+        if (def.kind === 'multi') {
+          const list = document.createElement('div');
+          list.id = def.type + '-file-list';
+          list.className = 'pca-file-list';
+          top.appendChild(list);
+        }
+
+        // AIへの追加指示
+        if (def.promptPlaceholder) {
+          const pc = document.createElement('div');
+          pc.className = 'prompt-container';
+          const label = document.createElement('label');
+          label.className = 'prompt-label';
+          label.textContent = 'AIへの追加指示（任意）';
+          const ta = document.createElement('textarea');
+          ta.id = 'prompt-' + def.type;
+          ta.className = 'prompt-input';
+          ta.rows = 2;
+          ta.placeholder = def.promptPlaceholder;
+          pc.appendChild(label);
+          pc.appendChild(ta);
+          top.appendChild(pc);
+        }
+
+        card.appendChild(top);
+
+        // 下部（実行ボタン・ステータス・使い方メモ）
+        const bottom = document.createElement('div');
+
+        if (def.buttonLabel) {
+          const btn = document.createElement('button');
+          btn.id = 'btn-' + def.type;
+          btn.className = 'send-btn';
+          btn.disabled = true;
+          btn.textContent = def.buttonLabel;
+          bottom.appendChild(btn);
+        }
+
+        const status = document.createElement('div');
+        status.id = 'status-' + def.type;
+        status.className = 'status';
+        bottom.appendChild(status);
+
+        if (def.note) {
+          const note = document.createElement('div');
+          note.setAttribute('style',
+            'font-size:0.7em; color:var(--text-sub); text-align:left; margin-top:10px; padding:8px; border-radius:10px; line-height:1.5;' +
+            (def.noteStyle || ''));
+          note.innerHTML = def.note;
+          bottom.appendChild(note);
+        }
+
+        card.appendChild(bottom);
+
+        // 隠しファイル入力（カードと一緒に生成するので、窓を足しても書き漏れません）
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.id = 'input-' + def.type;
+        input.className = 'hidden-input';
+        if (def.accept) input.accept = def.accept;
+        if (def.multiple) input.multiple = true;
+        card.appendChild(input);
+
+        return card;
+      },
+
+      _escape(text) {
+        const div = document.createElement('div');
+        div.textContent = text === undefined || text === null ? '' : String(text);
+        return div.innerHTML;
+      }
+    };
+
+    // ==================================================================
+    // Popover：ヘッダーの設定パネル（APIキー・モデル・文字コード）の開閉。
+    // 1つ開いたら他は閉じ、外側クリックとEscでも閉じます。
+    // ==================================================================
+    const Popover = {
+      init() {
+        document.querySelectorAll('[data-popover]').forEach(btn => {
+          btn.addEventListener('click', e => {
+            e.stopPropagation();
+            this.toggle(btn.dataset.popover);
+          });
+        });
+        document.querySelectorAll('.popover').forEach(pop => {
+          // パネル内のクリックで閉じないようにする
+          pop.addEventListener('click', e => e.stopPropagation());
+        });
+        document.addEventListener('click', () => this.closeAll());
+        document.addEventListener('keydown', e => {
+          if (e.key === 'Escape') this.closeAll();
+        });
+      },
+
+      toggle(id) {
+        const target = document.getElementById(id);
+        if (!target) return;
+        const willOpen = !target.classList.contains('open');
+        this.closeAll();
+        if (willOpen) {
+          target.classList.add('open');
+          const btn = document.querySelector('[data-popover="' + id + '"]');
+          if (btn) btn.classList.add('is-open');
+        }
+      },
+
+      closeAll() {
+        document.querySelectorAll('.popover.open').forEach(p => p.classList.remove('open'));
+        document.querySelectorAll('[data-popover].is-open').forEach(b => b.classList.remove('is-open'));
+      }
+    };
 
     // ==================================================================
     // ModelSelector：Geminiモデル選択プルダウンの管理専用。
@@ -2608,11 +3018,12 @@
     // Code.gs 側の各窓クラスが担当するため、ここには一切含めない。
     // ==================================================================
     class AiExtractionWindow {
-      constructor({ type, gasFunctionName, label, isPreviewType }) {
+      constructor({ type, gasFunctionName, label, isPreviewType, dropLabel }) {
         this.type = type;
         this.gasFunctionName = gasFunctionName;
         this.label = label;
         this.isPreviewType = isPreviewType;
+        this.dropLabel = dropLabel || 'ファイルをドロップ';
         this.selectedFile = null;
 
         this.zone = document.getElementById('drop-' + type);
@@ -2679,7 +3090,7 @@
         this.fileInput.value = '';
 
         this.zone.classList.remove('has-file');
-        this.zone.innerText = 'ファイルをドロップ';
+        this.zone.innerText = this.dropLabel;
         this.infoElem.innerText = '選択されていません';
         this.clearBtn.style.display = 'none';
 
@@ -2769,16 +3180,25 @@
     // 窓1〜窓4のクラスには一切依存せず、影響も与えません。
     // ==================================================================
     class PcaWindowController {
-      constructor() {
+      /**
+       * @param def WINDOW_DEFS の定義（省略時は窓5）。
+       *   type を受け取る形にしてあるので、同じ「複数まとめて解析」型の窓を
+       *   もう1つ増やしても、id が衝突しません。
+       */
+      constructor(def) {
+        const d = def || {};
+        this.type = d.type || 'pca';
+        this.label = d.label || '窓5(PCA仕訳)';
+        this.dropLabel = d.dropLabel || '請求書を何枚でもドロップ';
         this.files = [];        // { file, state: 'wait'|'done'|'err', message }
-        this.zone = document.getElementById('drop-pca');
-        this.fileInput = document.getElementById('input-pca');
-        this.infoElem = document.getElementById('file-info-pca');
-        this.listElem = document.getElementById('pca-file-list');
-        this.btn = document.getElementById('btn-pca');
-        this.clearBtn = document.getElementById('clear-pca');
-        this.statusElem = document.getElementById('status-pca');
-        this.promptElem = document.getElementById('prompt-pca');
+        this.zone = document.getElementById('drop-' + this.type);
+        this.fileInput = document.getElementById('input-' + this.type);
+        this.infoElem = document.getElementById('file-info-' + this.type);
+        this.listElem = document.getElementById(this.type + '-file-list');
+        this.btn = document.getElementById('btn-' + this.type);
+        this.clearBtn = document.getElementById('clear-' + this.type);
+        this.statusElem = document.getElementById('status-' + this.type);
+        this.promptElem = document.getElementById('prompt-' + this.type);
         this._bindEvents();
       }
 
@@ -2807,7 +3227,7 @@
         let added = 0;
         incoming.forEach(file => {
           if (!Utils.detectMimeType(file)) {
-            LogPanel.add('窓5(PCA仕訳) 非対応の形式のためスキップ: ' + file.name + '（PDF・PNG・JPEG・WEBP・HEICのみ対応）', 'error');
+            LogPanel.add(this.label + ' 非対応の形式のためスキップ: ' + file.name + '（PDF・PNG・JPEG・WEBP・HEICのみ対応）', 'error');
             return;
           }
           this.files.push({ file: file, state: 'wait', message: '未処理' });
@@ -2817,7 +3237,7 @@
         if (added > 0) {
           this.zone.classList.add('has-file');
           this.zone.innerText = '📁 さらに追加できます';
-          LogPanel.add('窓5(PCA仕訳) ' + added + ' 件を追加しました（合計 ' + this.files.length + ' 件）', 'info');
+          LogPanel.add(this.label + ' ' + added + ' 件を追加しました（合計 ' + this.files.length + ' 件）', 'info');
         }
         this._renderList();
       }
@@ -2826,12 +3246,12 @@
         this.files = [];
         this.fileInput.value = '';
         this.zone.classList.remove('has-file');
-        this.zone.innerText = '請求書を何枚でもドロップ';
+        this.zone.innerText = this.dropLabel;
         this.statusElem.innerText = '';
         this.statusElem.className = 'status';
         PcaPreview.clear();
         this._renderList();
-        LogPanel.add('窓5(PCA仕訳) ファイルと蓄積済み明細をすべて消去しました', 'info');
+        LogPanel.add(this.label + ' ファイルと蓄積済み明細をすべて消去しました', 'info');
       }
 
       _renderList() {
@@ -2860,7 +3280,7 @@
         this.clearBtn.style.display = this.files.length ? 'inline-block' : 'none';
 
         this.btn.disabled = (pending === 0);
-        this.btn.classList.toggle('ready-pca', pending > 0);
+        this.btn.classList.toggle('ready-' + this.type, pending > 0);
       }
 
       executeAll() {
@@ -2869,7 +3289,7 @@
 
         clearAllCardStatuses();
         this.btn.disabled = true;
-        LogPanel.add('窓5(PCA仕訳) ' + pending.length + ' 件の解析を開始します / モデル: ' + ModelSelector.current, 'info');
+        LogPanel.add(this.label + ' ' + pending.length + ' 件の解析を開始します / モデル: ' + ModelSelector.current, 'info');
         this._processNext(pending, 0);
       }
 
@@ -2902,7 +3322,7 @@
         reader.onerror = () => {
           item.state = 'err';
           item.message = '読込失敗';
-          LogPanel.add('窓5(PCA仕訳) ファイル読込失敗: ' + item.file.name, 'error');
+          LogPanel.add(this.label + ' ファイル読込失敗: ' + item.file.name, 'error');
           this._renderList();
           this._processNext(queue, index + 1);
         };
@@ -2915,14 +3335,14 @@
               item.message = count + '件';
               // 蓄積のみ行い、最後にまとめて1回だけ組み立てる
               PcaPreview.entries = PcaPreview.entries.concat(entries || []);
-              LogPanel.add('窓5(PCA仕訳) 解析成功: ' + item.file.name + ' → ' + count + '件', 'success');
+              LogPanel.add(this.label + ' 解析成功: ' + item.file.name + ' → ' + count + '件', 'success');
               this._renderList();
               this._processNext(queue, index + 1);
             })
             .withFailureHandler(err => {
               item.state = 'err';
               item.message = '失敗';
-              LogPanel.add('窓5(PCA仕訳) 解析エラー [' + item.file.name + ']: ' + err, 'error');
+              LogPanel.add(this.label + ' 解析エラー [' + item.file.name + ']: ' + err, 'error');
               this._renderList();
               this._processNext(queue, index + 1);
             })
@@ -2939,10 +3359,14 @@
     // クォート対応に修正しています（摘要のカンマで列がズレる不具合対策）。
     // ==================================================================
     class YayoiWindowController {
-      constructor() {
-        this.zone = document.getElementById('drop-yayoi');
-        this.fileInput = document.getElementById('input-yayoi');
-        this.statusElem = document.getElementById('status-yayoi');
+      /** @param def WINDOW_DEFS の定義（省略時は窓4）。 */
+      constructor(def) {
+        const d = def || {};
+        this.type = d.type || 'yayoi';
+        this.label = d.label || '窓4(弥生仕訳変換)';
+        this.zone = document.getElementById('drop-' + this.type);
+        this.fileInput = document.getElementById('input-' + this.type);
+        this.statusElem = document.getElementById('status-' + this.type);
         this._bindEvents();
       }
 
@@ -2963,7 +3387,7 @@
 
       handleFile(file) {
         if (!file) return;
-        LogPanel.add('窓4(弥生仕訳変換) ドロップ: ' + file.name, 'info');
+        LogPanel.add(this.label + ' ドロップ: ' + file.name, 'info');
         clearAllCardStatuses();
         this._convert(file);
       }
@@ -3031,11 +3455,11 @@
 
             this.statusElem.innerText = '変換成功！';
             this.statusElem.className = 'status success';
-            LogPanel.add('窓4(弥生仕訳変換) 成功 [' + downloadName + '] (合計: ￥' + total.toLocaleString() + ')', 'success');
+            LogPanel.add(this.label + ' 成功 [' + downloadName + '] (合計: ￥' + total.toLocaleString() + ')', 'success');
           } catch (err) {
             this.statusElem.innerText = '変換失敗';
             this.statusElem.className = 'status error';
-            LogPanel.add('窓4(弥生仕訳変換) 失敗: ' + (err && err.message ? err.message : err) + ' ファイルを確認してください。', 'error');
+            LogPanel.add(this.label + ' 失敗: ' + (err && err.message ? err.message : err) + ' ファイルを確認してください。', 'error');
           }
         };
         reader.readAsArrayBuffer(file);
@@ -3046,14 +3470,31 @@
     // 初期化：各窓のインスタンスを作成するだけ。ここに業務ロジックは書かない。
     // ==================================================================
     window.onload = function() {
+      // ① 先に窓カードのHTMLを組み立てる（コントローラーはこの後でDOMを掴む）
+      WindowCardRenderer.render();
+
+      Popover.init();
       ModelSelector.init();
       EncodingSelector.init();
 
-      window.cashWindow = new AiExtractionWindow({ type: 'cash', gasFunctionName: 'processCash', label: '窓1(スマート通帳)', isPreviewType: true });
-      window.smartCreditWindow = new AiExtractionWindow({ type: 'smart_credit', gasFunctionName: 'processSmartCredit', label: '窓2(スマートクレカ)', isPreviewType: true });
-      window.creditWindow = new AiExtractionWindow({ type: 'credit', gasFunctionName: 'processCredit', label: '窓3(弥生変換用クレカ)', isPreviewType: false });
-      window.yayoiWindow = new YayoiWindowController();
-      window.pcaWindow = new PcaWindowController();
+      // ② 定義に沿ってコントローラーを割り当てる。
+      //    窓を増やしたら WINDOW_DEFS に足すだけで、ここは変更不要です。
+      window.appWindows = {};
+      WINDOW_DEFS.forEach(def => {
+        if (def.kind === 'ai') {
+          window.appWindows[def.type] = new AiExtractionWindow({
+            type: def.type,
+            gasFunctionName: def.gasFunctionName,
+            label: def.label,
+            isPreviewType: !!def.isPreviewType,
+            dropLabel: def.dropLabel
+          });
+        } else if (def.kind === 'local') {
+          window.appWindows[def.type] = new YayoiWindowController(def);
+        } else if (def.kind === 'multi') {
+          window.appWindows[def.type] = new PcaWindowController(def);
+        }
+      });
 
       MasterPanel.reload();
 
