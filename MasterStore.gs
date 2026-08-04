@@ -73,21 +73,115 @@ class MasterStore {
     }
   }
 
+  /** マスタごとの更新情報（版番号・更新者・更新日時）を入れるキー。 */
+  static get META_PREFIX() { return 'MASTER_META_'; }
+
+  /**
+   * マスタの更新情報。同時編集の検出と、画面での「誰がいつ更新したか」表示に使います。
+   */
+  static meta(name) {
+    try {
+      const raw = PropertiesService.getScriptProperties()
+        .getProperty(MasterStore.META_PREFIX + name);
+      if (!raw) return { revision: 0, savedAt: '', savedBy: '' };
+      const m = JSON.parse(raw);
+      return {
+        revision: (typeof m.revision === 'number') ? m.revision : 0,
+        savedAt: m.savedAt || '',
+        savedBy: m.savedBy || ''
+      };
+    } catch (e) {
+      return { revision: 0, savedAt: '', savedBy: '' };
+    }
+  }
+
+  /** 全マスタの版番号一覧（画面が更新を検知するために定期取得します）。 */
+  static revisions() {
+    const out = {};
+    Object.keys(MasterStore.KEYS).forEach(function (name) {
+      out[name] = MasterStore.meta(name).revision;
+    });
+    return out;
+  }
+
+  /**
+   * マスタを保存し、版番号を1つ進めます。
+   * 誰がいつ更新したかも記録するので、「知らないうちに変わっていた」を
+   * 追いかけられます。
+   */
   static save(name, value) {
     const key = MasterStore.KEYS[name];
     if (!key) throw new Error('未知のマスタ名です: ' + name);
-    PropertiesService.getScriptProperties().setProperty(key, JSON.stringify(value));
+
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty(key, JSON.stringify(value));
+
+    const prev = MasterStore.meta(name);
+    let who = '';
+    try { who = AccessControl.currentEmail(); } catch (e) { /* 単体では権限機能なしでも動く */ }
+    let when = '';
+    try {
+      when = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm');
+    } catch (e) { when = new Date().toISOString(); }
+
+    props.setProperty(MasterStore.META_PREFIX + name, JSON.stringify({
+      revision: prev.revision + 1,
+      savedAt: when,
+      savedBy: who || '（不明）'
+    }));
   }
 
   static reset(name) {
     const key = MasterStore.KEYS[name];
     if (!key) throw new Error('未知のマスタ名です: ' + name);
-    PropertiesService.getScriptProperties().deleteProperty(key);
+    const props = PropertiesService.getScriptProperties();
+    props.deleteProperty(key);
+
+    // 初期値に戻したことも「更新」として版番号を進める。
+    // そうしないと、他の人の画面が古いままになります。
+    const prev = MasterStore.meta(name);
+    let who = '';
+    try { who = AccessControl.currentEmail(); } catch (e) { /* noop */ }
+    let when = '';
+    try {
+      when = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy/MM/dd HH:mm');
+    } catch (e) { when = new Date().toISOString(); }
+    props.setProperty(MasterStore.META_PREFIX + name, JSON.stringify({
+      revision: prev.revision + 1,
+      savedAt: when,
+      savedBy: (who || '（不明）') + '（初期値に戻す）'
+    }));
+  }
+
+  /**
+   * 同時更新から守るための共通ラッパー。
+   * ・排他ロックを取り、読み込み→書き込みの間に割り込まれないようにする
+   * ・expectedRevision が現在と違えば、他の人が先に更新したとみなして中止する
+   */
+  static _withGuard(name, expectedRevision, force, fn) {
+    let lock = null;
+    try { lock = LockService.getScriptLock(); } catch (e) { lock = null; }
+    if (lock && !lock.tryLock(15000)) {
+      throw new Error('他の人が保存中です。少し待ってからもう一度お試しください。');
+    }
+    try {
+      const current = MasterStore.meta(name);
+      if (!force && typeof expectedRevision === 'number' && expectedRevision !== current.revision) {
+        throw new Error(
+          'ほかの人が先にこのマスタを更新しています（' +
+          (current.savedBy || '不明') + ' / ' + (current.savedAt || '') + '）。\n' +
+          '最新を読み込んでから、もう一度保存してください。');
+      }
+      return fn();
+    } finally {
+      if (lock) { try { lock.releaseLock(); } catch (e) { /* noop */ } }
+    }
   }
 
   /** 画面（窓5）が必要とするマスタを一括で返す。 */
   static loadAll() {
     return {
+      revisions: MasterStore.revisions(),
       pcaAccounts:      MasterStore.load('pcaAccounts'),
       departments:      MasterStore.load('departments'),
       taxClasses:       MasterStore.load('taxClasses'),
@@ -311,21 +405,26 @@ class MasterStore {
    * 検証エラーがある場合は保存せず例外を投げます（部分保存で
    * マスタが壊れるのを防ぐため）。
    */
-  static saveMasterList(name, rawList) {
+  static saveMasterList(name, rawList, expectedRevision, force) {
     if (!MasterStore.KEYS[name]) throw new Error('未知のマスタ名です: ' + name);
-    const result = MasterStore.validate(name, rawList);
-    if (result.errors.length) {
-      throw new Error('保存できませんでした。\n・' + result.errors.slice(0, 10).join('\n・'));
-    }
-    if (result.list.length === 0) {
-      throw new Error('保存できる行がありません。1行以上入力してください。');
-    }
-    MasterStore.save(name, result.list);
-    return {
-      count: result.list.length,
-      warnings: result.warnings,
-      masters: MasterStore.loadAll()
-    };
+
+    return MasterStore._withGuard(name, expectedRevision, force, function () {
+      const result = MasterStore.validate(name, rawList);
+      if (result.errors.length) {
+        throw new Error('保存できませんでした。\n・' + result.errors.slice(0, 10).join('\n・'));
+      }
+      if (result.list.length === 0) {
+        throw new Error('保存できる行がありません。1行以上入力してください。');
+      }
+      MasterStore.save(name, result.list);
+      return {
+        count: result.list.length,
+        warnings: result.warnings,
+        masters: MasterStore.loadAll(),
+        revisions: MasterStore.revisions(),
+        meta: MasterStore.meta(name)
+      };
+    });
   }
 
   /**
@@ -333,6 +432,12 @@ class MasterStore {
    * 窓5の「未確定リスト」から、その場でルール化するために使います。
    */
   static addKeywordRule(rule) {
+    return MasterStore._withGuard('keywordRules', null, true, function () {
+      return MasterStore._addKeywordRuleUnsafe(rule);
+    });
+  }
+
+  static _addKeywordRuleUnsafe(rule) {
     const list = (MasterStore.load('keywordRules') || []).slice();
     const incoming = {
       vendorKeyword: CsvUtilLite.trim(rule && rule.vendorKeyword),
@@ -364,6 +469,12 @@ class MasterStore {
    * 未確定リストから「この科目を新しく作る」ときに使います。
    */
   static addInternalAccount(item) {
+    return MasterStore._withGuard('internalAccounts', null, true, function () {
+      return MasterStore._addInternalAccountUnsafe(item);
+    });
+  }
+
+  static _addInternalAccountUnsafe(item) {
     const list = (MasterStore.load('internalAccounts') || []).slice();
     const incoming = {
       section: CsvUtilLite.trim(item && item.section),

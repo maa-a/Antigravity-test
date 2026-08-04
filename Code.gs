@@ -154,10 +154,40 @@ function resetMaster(name) {
   return MasterStore.loadAll();
 }
 
-/** ⚙ 画面の表UIで編集したマスタ一覧を保存する（行の追加・修正・削除） */
-function saveMasterList(name, list) {
+/**
+ * ⚙ 画面の表UIで編集したマスタ一覧を保存する（行の追加・修正・削除）
+ * @param expectedRevision 画面が読み込んだときの版番号。
+ *        他の人が先に更新していた場合は保存せずエラーを返します。
+ * @param force true なら上書きを強行します（画面で確認したうえで使用）。
+ */
+function saveMasterList(name, list, expectedRevision, force) {
   AccessControl.require('admin');
-  return MasterStore.saveMasterList(name, list);
+  return MasterStore.saveMasterList(name, list, expectedRevision, force);
+}
+
+/**
+ * 🔄 他の人の更新を検知するための軽い問い合わせ。
+ * 明細のような重いデータは返さず、版番号だけを返します
+ * （画面が数十秒ごとに呼ぶため、通信量を最小にしています）。
+ */
+function getSyncStatus() {
+  const ctx = AccessControl.context();
+  let shared = { revision: 0, savedAt: '', savedBy: '', hasData: false };
+  try {
+    const state = SharedWorkspace.load();
+    shared = {
+      revision: state.revision,
+      savedAt: state.savedAt,
+      savedBy: state.savedBy,
+      hasData: !!state.data
+    };
+  } catch (e) { /* 読めなくても画面は動かす */ }
+
+  return {
+    masters: MasterStore.revisions(),
+    shared: shared,
+    role: ctx.role
+  };
 }
 
 /** ⚙ 仕分けルールを1件追加（窓5の未確定リストからその場で登録） */

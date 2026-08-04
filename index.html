@@ -1002,6 +1002,22 @@
     }
 
     .resume-text { font-size: 0.86em; font-weight: 700; color: #92400e; }
+
+    .sync-bar {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      background: #eff6ff;
+      border: 1px solid #93c5fd;
+      border-radius: 14px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .sync-text { font-size: 0.86em; font-weight: 700; color: #1d4ed8; }
     .resume-actions { display: flex; gap: 8px; }
 
     .carry-info {
@@ -1372,6 +1388,16 @@
       <span class="resume-actions">
         <button id="resume-btn" class="preview-btn preview-btn-download">▶ 続きから再開</button>
         <button id="resume-discard" class="preview-btn preview-btn-add">破棄する</button>
+      </span>
+    </div>
+
+    <!-- 他の人が更新したときに出るお知らせ -->
+    <div id="sync-bar" class="sync-bar">
+      <span id="sync-text" class="sync-text"></span>
+      <span class="resume-actions">
+        <button id="sync-reload" class="preview-btn preview-btn-download">↻ 最新のマスタを読み込む</button>
+        <button id="sync-load-shared" class="preview-btn preview-btn-sheet">⬇ 共有を読み込む</button>
+        <button id="sync-dismiss" class="preview-btn preview-btn-add">閉じる</button>
       </span>
     </div>
 
@@ -2423,6 +2449,112 @@
     };
 
     // ==================================================================
+    // SyncWatcher：他の人の更新に気づくための見張り役。
+    // ------------------------------------------------------------------
+    // 数十秒おきに「版番号だけ」をサーバーへ問い合わせ、
+    // 自分が知っている版と違えば画面上部でお知らせします。
+    // 明細のような重いデータは取りに行かないので、通信量はごくわずかです。
+    //
+    // ※ Googleドキュメントのような1文字単位のリアルタイム同期ではありません。
+    //   「他の人が更新しました → 読み込みますか？」という形で、
+    //   互いの作業を上書きし合う事故を防ぐ方式です。
+    // ==================================================================
+    const SyncWatcher = {
+      INTERVAL_MS: 30000,       // 30秒おき
+      known: null,              // 自分が把握している版番号
+      timer: null,
+
+      start() {
+        this.check(true);
+        if (this.timer) clearInterval(this.timer);
+        this.timer = setInterval(() => this.check(false), this.INTERVAL_MS);
+        // 別タブから戻ってきたときはすぐ確認する
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) this.check(false);
+        });
+      },
+
+      /** いまの状態を「自分は知っている」ことにする（自分が保存した直後に呼ぶ）。 */
+      accept() {
+        google.script.run
+          .withSuccessHandler(status => {
+            if (status) this.known = status;
+            this._hideBanner();
+          })
+          .withFailureHandler(() => { /* 取得できなくても本体は動かす */ })
+          .getSyncStatus();
+      },
+
+      check(isFirst) {
+        google.script.run
+          .withSuccessHandler(status => {
+            if (!status) return;
+            if (isFirst || !this.known) { this.known = status; return; }
+
+            const changed = [];
+            const labels = {
+              pcaAccounts: 'PCA勘定科目', departments: '部門',
+              internalAccounts: '社内管理科目', keywordRules: '仕分けルール',
+              taxClasses: '税区分', subAccounts: '補助科目'
+            };
+            Object.keys(status.masters || {}).forEach(name => {
+              const before = (this.known.masters || {})[name];
+              if (before !== undefined && status.masters[name] !== before) {
+                changed.push(labels[name] || name);
+              }
+            });
+
+            const sharedChanged = this.known.shared &&
+              status.shared && status.shared.revision !== this.known.shared.revision;
+
+            if (!changed.length && !sharedChanged) return;
+
+            const parts = [];
+            if (changed.length) parts.push('マスタ（' + changed.join('・') + '）が更新されました');
+            if (sharedChanged) {
+              parts.push('共有作業が更新されました（' +
+                (status.shared.savedBy || '不明') + ' / ' + (status.shared.savedAt || '') + '）');
+            }
+            this._showBanner(parts.join(' ／ '), changed.length > 0, sharedChanged);
+            this.known = status;
+          })
+          .withFailureHandler(() => { /* 通信できなくても本体は動かす */ })
+          .getSyncStatus();
+      },
+
+      _showBanner(text, masterChanged, sharedChanged) {
+        const bar = document.getElementById('sync-bar');
+        document.getElementById('sync-text').textContent = '🔄 ' + text;
+
+        const reload = document.getElementById('sync-reload');
+        reload.style.display = masterChanged ? 'inline-block' : 'none';
+        reload.onclick = () => {
+          MasterPanel.reload(() => {
+            if (document.getElementById('master-panel').style.display === 'block') {
+              MasterPanel.select(MasterPanel.current);
+            }
+            LogPanel.add('最新のマスタを読み込みました', 'success');
+          });
+          this._hideBanner();
+        };
+
+        const load = document.getElementById('sync-load-shared');
+        load.style.display = sharedChanged ? 'inline-block' : 'none';
+        load.onclick = () => {
+          SharedWork.load();
+          this._hideBanner();
+        };
+
+        document.getElementById('sync-dismiss').onclick = () => this._hideBanner();
+        bar.style.display = 'flex';
+      },
+
+      _hideBanner() {
+        document.getElementById('sync-bar').style.display = 'none';
+      }
+    };
+
+    // ==================================================================
     // MemberPanel：メンバーごとの権限設定（管理者のみ）
     // ==================================================================
     const MemberPanel = {
@@ -2639,6 +2771,7 @@
             hideLockScreen();
             if (!res) { LogPanel.add('共有への保存結果を取得できませんでした', 'error'); return; }
             this.revision = res.revision;
+            SyncWatcher.accept();   // 自分の更新なので通知は出さない
             this._setStatus('最終更新: ' + res.savedBy + ' / ' + res.savedAt + '（版 ' + res.revision + '）');
             LogPanel.add('共有に保存しました（版 ' + res.revision + ' / ' + res.savedAt + '）', 'success');
           })
@@ -2718,6 +2851,7 @@
     const MasterPanel = {
       current: 'internalAccounts',
       masters: null,
+      revisions: {},        // マスタごとの版番号（同時更新の検出に使用）
       rows: [],          // 編集中の行（保存を押すまでサーバーには送りません）
       dirty: false,
 
@@ -2987,12 +3121,14 @@
         el.className = 'status' + (type ? ' ' + type : '');
       },
 
-      save() {
+      save(force) {
         showLockScreen('マスタを保存しています...');
         google.script.run
           .withSuccessHandler(res => {
             hideLockScreen();
             this.masters = res.masters;
+            this.revisions = res.revisions || (res.masters && res.masters.revisions) || {};
+            SyncWatcher.accept();     // 自分の更新なので通知は出さない
             this.dirty = false;
             this.rows = (res.masters[this.current] || []).map(x => Object.assign({}, x));
             this.renderTable();
@@ -3006,10 +3142,24 @@
           })
           .withFailureHandler(err => {
             hideLockScreen();
+            const msg = String(err);
+            // 他の管理者が先に更新していた場合は、黙って上書きせず確認する
+            if (msg.indexOf('先にこのマスタを更新') !== -1) {
+              if (confirm(msg + '\n\nこのまま自分の内容で上書きしますか？\n' +
+                          '（「キャンセル」を押すと、最新を読み込み直せます）')) {
+                this.save(true);
+              } else {
+                this.dirty = false;
+                this.reload(() => this.select(this.current));
+              }
+              return;
+            }
             this._setStatus('保存できませんでした: ' + err, 'error');
             LogPanel.add('マスタ保存エラー: ' + err, 'error');
           })
-          .saveMasterList(this.current, this.rows);
+          .saveMasterList(this.current, this.rows,
+                          force ? null : (this.revisions ? this.revisions[this.current] : null),
+                          !!force);
       },
 
       _toText(name) {
@@ -3081,6 +3231,7 @@
         google.script.run
           .withSuccessHandler(masters => {
             this.masters = masters;
+            this.revisions = (masters && masters.revisions) || {};
             if (!this.dirty && document.getElementById('master-panel').style.display === 'block') {
               this.rows = (masters[this.current] || []).map(x => Object.assign({}, x));
               this.renderTable();
@@ -4779,6 +4930,7 @@
       Access.init(() => {
         MasterPanel.reload();
         SharedWork.peek();
+        SyncWatcher.start();   // 他の人の更新に気づけるようにする
       });
 
       // 前回出力CSVの読み込み（追記モード）
