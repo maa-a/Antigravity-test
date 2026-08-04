@@ -38,31 +38,81 @@ function doGet(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+/** 🔑 APIキーの保存（管理者のみ）。全員で共有されるキーです。 */
 function setUserApiKey(key) {
+  AccessControl.require('admin');
   PropertiesService.getScriptProperties().setProperty('USER_GEMINI_API_KEY', key);
 }
 
+/**
+ * 🔑 APIキーの取得。
+ * 管理者以外にはキー本体を返さず、「設定済みかどうか」だけを返します
+ * （画面に他人のAPIキーが表示されないようにするため）。
+ */
 function getUserApiKey() {
-  return PropertiesService.getScriptProperties().getProperty('USER_GEMINI_API_KEY') || '';
+  const stored = PropertiesService.getScriptProperties().getProperty('USER_GEMINI_API_KEY') || '';
+  const ctx = AccessControl.context();
+  if (ctx.canAdmin) return stored;
+  return stored ? '********（設定済み・管理者のみ変更できます）' : '';
+}
+
+/** 👥 いまアプリを開いている人の権限情報（画面の出し分けに使用） */
+function getAccessContext() {
+  return AccessControl.context();
+}
+
+/** 👥 メンバー一覧の取得（管理者のみ） */
+function getMembers() {
+  AccessControl.require('admin');
+  return { members: AccessControl.members(), defaultRole: AccessControl.defaultRole() };
+}
+
+/** 👥 メンバー一覧の保存（管理者のみ） */
+function saveMembers(list) {
+  return AccessControl.saveMembers(list);
+}
+
+/** 👥 メンバー表に無い人の既定権限を保存（管理者のみ） */
+function setDefaultRole(role) {
+  return AccessControl.setDefaultRole(role);
+}
+
+/** 👥 共有作業の読み込み（閲覧者以上） */
+function loadSharedWork() {
+  return SharedWorkspace.load();
+}
+
+/** 👥 共有作業の保存（編集者以上） */
+function saveSharedWork(data, expectedRevision, force) {
+  return SharedWorkspace.save(data, expectedRevision, force);
+}
+
+/** 👥 共有作業の消去（編集者以上） */
+function clearSharedWork() {
+  return SharedWorkspace.clear();
 }
 
 /** 🏦 窓1：通帳・現金（スマート取引取込用） */
 function processCash(base64Data, mimeType, customPrompt, modelName) {
+  AccessControl.require('editor');
   return new CashWindow().process(base64Data, mimeType, customPrompt, modelName);
 }
 
 /** 💳 窓2：クレジット（スマート取引取込用・使用目的推測付き） */
 function processSmartCredit(base64Data, mimeType, customPrompt, modelName) {
+  AccessControl.require('editor');
   return new SmartCreditWindow().process(base64Data, mimeType, customPrompt, modelName);
 }
 
 /** 💳 窓3：クレジット（PC版弥生インポート用 中間ファイル生成） */
 function processCredit(base64Data, mimeType, customPrompt, modelName) {
+  AccessControl.require('editor');
   return new CreditWindow().process(base64Data, mimeType, customPrompt, modelName);
 }
 
 /** 🧾 窓5：請求書・領収書 → PCA会計 仕訳（1ファイル分の解析） */
 function processInvoiceForPca(base64Data, mimeType, customPrompt, modelName, sourceFileName) {
+  AccessControl.require('editor');
   return new PcaInvoiceWindow().process(base64Data, mimeType, customPrompt, modelName, sourceFileName);
 }
 
@@ -81,37 +131,44 @@ function getMasters() {
 
 /** ⚙ 社内管理科目（PL（詳細）D〜E列）の貼り付け取り込み */
 function importInternalAccounts(text) {
+  AccessControl.require('admin');
   return MasterStore.importInternalAccounts(text);
 }
 
 /** ⚙ PCA勘定科目マスタの貼り付け取り込み */
 function importPcaAccounts(text) {
+  AccessControl.require('admin');
   return MasterStore.importPcaAccounts(text);
 }
 
 /** ⚙ 部門マスタの貼り付け取り込み */
 function importDepartments(text) {
+  AccessControl.require('admin');
   return MasterStore.importDepartments(text);
 }
 
 /** ⚙ 指定マスタを初期値（AccountMaster.gs のシード）に戻す */
 function resetMaster(name) {
+  AccessControl.require('admin');
   MasterStore.reset(name);
   return MasterStore.loadAll();
 }
 
 /** ⚙ 画面の表UIで編集したマスタ一覧を保存する（行の追加・修正・削除） */
 function saveMasterList(name, list) {
+  AccessControl.require('admin');
   return MasterStore.saveMasterList(name, list);
 }
 
 /** ⚙ 仕分けルールを1件追加（窓5の未確定リストからその場で登録） */
 function addKeywordRule(rule) {
+  AccessControl.require('admin');
   return MasterStore.addKeywordRule(rule);
 }
 
 /** ⚙ 社内管理科目を1件追加・更新（未確定リストから新しい科目を作る） */
 function addInternalAccount(item) {
+  AccessControl.require('admin');
   return MasterStore.addInternalAccount(item);
 }
 

@@ -1019,6 +1019,35 @@
     /* 前回出力から読み込んだ行は左端に帯を付けて区別する */
     .row-carry td:first-child { box-shadow: inset 4px 0 0 #14b8a6; }
 
+    .who-chip {
+      font-size: 0.74em;
+      font-weight: 700;
+      color: #33556f;
+      background: #eef6fc;
+      border: 1px solid #d3e8f7;
+      border-radius: 999px;
+      padding: 6px 12px;
+      white-space: nowrap;
+    }
+
+    .who-chip.is-admin { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+    .who-chip.is-viewer { background: #fff7ed; border-color: #fed7aa; color: #b45309; }
+
+    .share-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: #f0fdfa;
+      border: 1px solid #99f6e4;
+      border-radius: 14px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+    }
+
+    .share-label { font-size: 0.84em; font-weight: 800; color: #0f766e; white-space: nowrap; }
+    .share-status { font-size: 0.8em; color: #0f766e; }
+
     .mode-toggle {
       display: flex;
       gap: 8px;
@@ -1300,6 +1329,8 @@
         </div>
 
         <button class="toolbar-btn" onclick="MasterPanel.toggle()">⚙ 勘定科目マスタ設定</button>
+        <button id="btn-members" class="toolbar-btn" style="display:none;" onclick="MemberPanel.toggle()">👥 メンバー権限</button>
+        <span id="who-am-i" class="who-chip" title="いまアプリを開いている人と権限"></span>
 
         <div class="popover-wrap">
           <button class="toolbar-btn" data-popover="pop-model">🤖 モデル</button>
@@ -1364,6 +1395,52 @@
           ※画面をリロードするとログは自動クリアされます。エラー発生時は自動で翻訳・要約が追記されます。
         </div>
       </div>
+    </div>
+
+    <!-- ============ メンバー権限パネル（管理者のみ表示） ============ -->
+    <div id="member-panel" class="master-panel">
+      <div class="preview-header">
+        <div class="preview-title">👥 メンバー権限</div>
+        <div class="preview-actions">
+          <button class="preview-btn preview-btn-add" onclick="MemberPanel.addRow()">➕ メンバーを追加</button>
+          <button class="preview-btn preview-btn-download" onclick="MemberPanel.save()">💾 保存する</button>
+        </div>
+      </div>
+
+      <div class="master-hint">
+        リンクを開けるのは<strong>同じGoogle Workspaceドメインの方だけ</strong>です。そのうえで、ここで一人ひとりの権限を決められます。
+        <ul class="notice-list">
+          <li><strong>管理者</strong> … 勘定科目マスタの編集・メンバー権限の設定・APIキーの設定ができます</li>
+          <li><strong>編集者</strong> … 請求書の解析・修正・出力と、共有作業の更新ができます（マスタは閲覧のみ）</li>
+          <li><strong>閲覧者</strong> … 共有された内容の閲覧と出力のみできます（解析・保存はできません）</li>
+          <li>⚠ <strong>勘定科目マスタ・仕分けルール・APIキーは、もともと全員で共有</strong>されています。管理者が設定した内容が、そのまま全員の画面に反映されます</li>
+          <li>🔒 <strong>APIキーは管理者以外には表示されません</strong>（設定済みかどうかだけが分かります）</li>
+          <li>アプリをデプロイした方（オーナー）は、締め出しを防ぐため<strong>常に管理者</strong>です</li>
+        </ul>
+      </div>
+
+      <div class="master-filter-bar">
+        <label class="master-filter-check">
+          表に載っていない人の既定権限：
+          <span class="select-wrap" style="width:auto; display:inline-block;">
+            <select id="default-role" class="model-select" style="min-width:170px;" onchange="MemberPanel.saveDefaultRole()">
+              <option value="viewer">閲覧者</option>
+              <option value="editor">編集者</option>
+              <option value="admin">管理者</option>
+            </select>
+          </span>
+        </label>
+        <span id="member-count" class="master-count"></span>
+      </div>
+
+      <div class="table-container" style="max-height: 420px;">
+        <table class="preview-table" id="member-table">
+          <thead id="member-thead"></thead>
+          <tbody id="member-tbody"></tbody>
+        </table>
+      </div>
+
+      <div id="member-status" class="status"></div>
     </div>
 
     <!-- ============ マスタ設定パネル ============ -->
@@ -1480,6 +1557,15 @@
         <button class="mode-btn" onclick="document.getElementById('input-prev-csv').click()">📥 前回出力を読み込んで続きに追加（CSV / Excel）</button>
         <button class="mode-btn" onclick="PcaPreview.loadPreviousSpreadsheet()">📗 スプレッドシートから読み込む</button>
         <button id="pca-clear-carry" class="mode-btn" style="display:none;" onclick="PcaPreview.clearCarry()">✖ 読み込みを解除</button>
+      </div>
+
+      <!-- 作業内容をメンバー間で共有するための操作 -->
+      <div class="share-bar">
+        <span class="share-label">👥 作業の共有</span>
+        <button id="btn-share-load" class="mode-btn" onclick="SharedWork.load()">⬇ 共有から読み込む</button>
+        <button id="btn-share-save" class="mode-btn" onclick="SharedWork.save()">⬆ 共有に保存する</button>
+        <button id="btn-share-clear" class="mode-btn" onclick="SharedWork.clear()">🗑 共有を空にする</button>
+        <span id="share-status" class="share-status"></span>
       </div>
       <input type="file" id="input-prev-csv" class="hidden-input" accept=".csv,.xlsx">
       <div id="carry-info" class="carry-info"></div>
@@ -2243,6 +2329,382 @@
     };
 
     // ==================================================================
+    // Access：いまアプリを開いている人の権限を保持し、画面を出し分ける。
+    // ------------------------------------------------------------------
+    // ⚠ 画面でボタンを隠すのは「誤操作を防ぐため」であって、
+    //   security の担保ではありません。実際の制限はサーバー側
+    //   （AccessControl.gs）で必ず判定しています。
+    // ==================================================================
+    const Access = {
+      ctx: { role: 'viewer', canView: true, canEdit: false, canAdmin: false, email: '', openMode: false },
+
+      init(callback) {
+        google.script.run
+          .withSuccessHandler(ctx => {
+            this.ctx = ctx || this.ctx;
+            this.apply();
+            if (callback) callback();
+          })
+          .withFailureHandler(err => {
+            LogPanel.add('権限情報の取得に失敗しました: ' + err, 'error');
+            if (callback) callback();
+          })
+          .getAccessContext();
+      },
+
+      get canEdit() { return !!this.ctx.canEdit; },
+      get canAdmin() { return !!this.ctx.canAdmin; },
+
+      /** 権限に応じて画面のボタンを有効・無効にする。 */
+      apply() {
+        const c = this.ctx;
+        const labels = { admin: '管理者', editor: '編集者', viewer: '閲覧者' };
+        const chip = document.getElementById('who-am-i');
+
+        chip.textContent = (c.email || '（アカウント未取得）') + ' ／ ' + (labels[c.role] || c.role)
+          + (c.openMode ? '（メンバー未登録）' : '');
+        chip.classList.toggle('is-admin', c.role === 'admin');
+        chip.classList.toggle('is-viewer', c.role === 'viewer');
+        chip.title = (c.roleLabel || '') +
+          (c.openMode ? '\n※ メンバーが未登録のため、全員が編集者として利用できます。' : '') +
+          (c.identified ? '' : '\n※ アカウント情報を取得できないため、既定の権限が適用されています。');
+
+        // メンバー権限パネルは管理者のみ
+        document.getElementById('btn-members').style.display = c.canAdmin ? 'inline-block' : 'none';
+
+        // 解析ボタン（編集者以上）
+        WINDOW_DEFS.forEach(def => {
+          const btn = document.getElementById('btn-' + def.type);
+          if (btn && !c.canEdit) {
+            btn.disabled = true;
+            btn.title = '解析するには編集者以上の権限が必要です';
+          }
+          const zone = document.getElementById('drop-' + def.type);
+          if (zone && !c.canEdit) {
+            zone.style.opacity = '0.5';
+            zone.style.pointerEvents = 'none';
+            zone.title = '解析するには編集者以上の権限が必要です';
+          }
+        });
+
+        // 共有作業の保存・消去（編集者以上）
+        ['btn-share-save', 'btn-share-clear'].forEach(id => {
+          const b = document.getElementById(id);
+          if (b) {
+            b.disabled = !c.canEdit;
+            if (!c.canEdit) b.title = '共有作業の更新には編集者以上の権限が必要です';
+          }
+        });
+
+        if (!c.canEdit) {
+          LogPanel.add('閲覧者として開いています。解析と保存はできません（共有内容の閲覧と出力は可能です）。', 'info');
+        }
+      },
+
+      /** マスタ設定パネルを権限に応じて読み取り専用にする。 */
+      applyToMasterPanel() {
+        if (this.canAdmin) return;
+        const panel = document.getElementById('master-panel');
+        panel.querySelectorAll('input, select, textarea, button').forEach(el => {
+          // タブの切り替えと絞り込みだけは閲覧者にも許可する
+          if (el.classList.contains('mode-btn') || el.id === 'master-filter'
+              || el.id === 'master-only-unlinked') return;
+          el.disabled = true;
+        });
+        const hint = document.getElementById('master-hint');
+        if (hint && !hint.dataset.readonlyNoted) {
+          hint.dataset.readonlyNoted = '1';
+          const note = document.createElement('div');
+          note.style.cssText = 'margin-top:10px; color:#b45309; font-weight:700;';
+          note.textContent = '🔒 閲覧のみです。マスタの編集には管理者権限が必要です。';
+          hint.appendChild(note);
+        }
+      }
+    };
+
+    // ==================================================================
+    // MemberPanel：メンバーごとの権限設定（管理者のみ）
+    // ==================================================================
+    const MemberPanel = {
+      rows: [],
+      dirty: false,
+
+      toggle() {
+        const panel = document.getElementById('member-panel');
+        const isOpen = panel.style.display === 'block';
+        panel.style.display = isOpen ? 'none' : 'block';
+        if (!isOpen) {
+          this.reload();
+          panel.scrollIntoView({ behavior: 'smooth' });
+        }
+      },
+
+      reload() {
+        google.script.run
+          .withSuccessHandler(res => {
+            if (!res) return;
+            this.rows = (res.members || []).map(m => Object.assign({}, m));
+            document.getElementById('default-role').value = res.defaultRole || 'viewer';
+            this.dirty = false;
+            this.render();
+          })
+          .withFailureHandler(err => this._setStatus('メンバー情報を取得できません: ' + err, 'error'))
+          .getMembers();
+      },
+
+      render() {
+        const thead = document.getElementById('member-thead');
+        const tbody = document.getElementById('member-tbody');
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+
+        const headRow = document.createElement('tr');
+        ['メールアドレス', '権限', 'メモ（任意）', '削除'].forEach(label => {
+          const th = document.createElement('th');
+          th.textContent = label;
+          headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+
+        this.rows.forEach((row, index) => {
+          const tr = document.createElement('tr');
+
+          const tdMail = document.createElement('td');
+          const mail = document.createElement('input');
+          mail.type = 'text';
+          mail.className = 'master-cell-input';
+          mail.value = row.email || '';
+          mail.placeholder = 'name@example.co.jp';
+          mail.addEventListener('input', () => { row.email = mail.value; this.dirty = true; });
+          tdMail.appendChild(mail);
+          tr.appendChild(tdMail);
+
+          const tdRole = document.createElement('td');
+          const sel = document.createElement('select');
+          sel.className = 'master-select';
+          [['admin', '管理者'], ['editor', '編集者'], ['viewer', '閲覧者']].forEach(([v, l]) => {
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = l;
+            sel.appendChild(opt);
+          });
+          sel.value = row.role || 'viewer';
+          sel.addEventListener('change', () => { row.role = sel.value; this.dirty = true; });
+          tdRole.appendChild(Utils.wrapSelect(sel));
+          tr.appendChild(tdRole);
+
+          const tdNote = document.createElement('td');
+          const note = document.createElement('input');
+          note.type = 'text';
+          note.className = 'master-cell-input';
+          note.value = row.note || '';
+          note.placeholder = '例: 経理担当';
+          note.addEventListener('input', () => { row.note = note.value; this.dirty = true; });
+          tdNote.appendChild(note);
+          tr.appendChild(tdNote);
+
+          const tdDel = document.createElement('td');
+          tdDel.style.textAlign = 'center';
+          const del = document.createElement('button');
+          del.className = 'btn-row-delete';
+          del.textContent = '削除';
+          del.onclick = () => {
+            this.rows.splice(index, 1);
+            this.dirty = true;
+            this.render();
+          };
+          tdDel.appendChild(del);
+          tr.appendChild(tdDel);
+
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById('member-count').textContent =
+          '全 ' + this.rows.length + ' 名' + (this.dirty ? ' ⚠ 未保存' : '');
+      },
+
+      addRow() {
+        this.rows.unshift({ email: '', role: 'editor', note: '' });
+        this.dirty = true;
+        this.render();
+        const first = document.querySelector('#member-tbody input.master-cell-input');
+        if (first) first.focus();
+      },
+
+      save() {
+        showLockScreen('メンバー権限を保存しています...');
+        google.script.run
+          .withSuccessHandler(res => {
+            hideLockScreen();
+            this.rows = (res.members || []).map(m => Object.assign({}, m));
+            this.dirty = false;
+            this.render();
+            Access.ctx = res.context || Access.ctx;
+            Access.apply();
+            this._setStatus(res.count + ' 名を保存しました。', 'success');
+            LogPanel.add('メンバー権限を保存しました（' + res.count + ' 名）', 'success');
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            this._setStatus('保存できませんでした: ' + err, 'error');
+          })
+          .saveMembers(this.rows);
+      },
+
+      saveDefaultRole() {
+        const role = document.getElementById('default-role').value;
+        google.script.run
+          .withSuccessHandler(res => {
+            Access.ctx = res.context || Access.ctx;
+            Access.apply();
+            this._setStatus('表に載っていない人の既定権限を保存しました。', 'success');
+          })
+          .withFailureHandler(err => this._setStatus('保存できませんでした: ' + err, 'error'))
+          .setDefaultRole(role);
+      },
+
+      _setStatus(msg, type) {
+        const el = document.getElementById('member-status');
+        el.textContent = msg;
+        el.className = 'status' + (type ? ' ' + type : '');
+      }
+    };
+
+    // ==================================================================
+    // SharedWork：窓5の作業内容をメンバー間で共有する。
+    // ------------------------------------------------------------------
+    // 保存先はサーバー側（オーナーのDrive上のJSONファイル1つ）。
+    // 版番号で管理し、他の人が先に更新していた場合は上書きせず警告します。
+    // ==================================================================
+    const SharedWork = {
+      revision: null,       // 最後に読み書きした版番号
+      lastInfo: '',
+
+      _setStatus(text) {
+        this.lastInfo = text || '';
+        document.getElementById('share-status').textContent = this.lastInfo;
+      },
+
+      /** 共有作業を読み込んで、いまの画面に反映する。 */
+      load(silent) {
+        showLockScreen('共有作業を読み込んでいます...');
+        google.script.run
+          .withSuccessHandler(state => {
+            hideLockScreen();
+            if (!state) {   // 応答が空でも画面を壊さない
+              this._setStatus('共有データを取得できませんでした');
+              return;
+            }
+            this.revision = state.revision;
+            if (!state.data) {
+              this._setStatus('共有データはまだありません');
+              if (!silent) LogPanel.add('共有作業はまだ保存されていません', 'info');
+              return;
+            }
+            const d = state.data;
+            PcaPreview.entries = d.entries || [];
+            PcaPreview.carryRows = d.carryRows || [];
+            PcaPreview.carryMode = d.carryMode || '';
+            PcaPreview.carryName = d.carryName || '';
+            PcaPreview.mode = d.mode || 'internal';
+            document.getElementById('pca-mode-internal').classList.toggle('active', PcaPreview.mode === 'internal');
+            document.getElementById('pca-mode-office').classList.toggle('active', PcaPreview.mode === 'office');
+
+            this._setStatus('最終更新: ' + state.savedBy + ' / ' + state.savedAt + '（版 ' + state.revision + '）');
+            LogPanel.add('共有作業を読み込みました（明細 ' + PcaPreview.entries.length +
+              ' 件 / 最終更新 ' + state.savedBy + ' ' + state.savedAt + '）', 'success');
+            PcaPreview.rebuild();
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            LogPanel.add('共有作業の読み込みに失敗: ' + err, 'error');
+          })
+          .loadSharedWork();
+      },
+
+      /** いまの画面の内容を共有に保存する。 */
+      save(force) {
+        if (!Access.canEdit) {
+          LogPanel.add('共有作業の更新には編集者以上の権限が必要です', 'error');
+          return;
+        }
+        if (!PcaPreview.entries.length && !PcaPreview.carryRows.length) {
+          LogPanel.add('共有に保存する内容がありません', 'info');
+          return;
+        }
+
+        showLockScreen('共有に保存しています...');
+        google.script.run
+          .withSuccessHandler(res => {
+            hideLockScreen();
+            if (!res) { LogPanel.add('共有への保存結果を取得できませんでした', 'error'); return; }
+            this.revision = res.revision;
+            this._setStatus('最終更新: ' + res.savedBy + ' / ' + res.savedAt + '（版 ' + res.revision + '）');
+            LogPanel.add('共有に保存しました（版 ' + res.revision + ' / ' + res.savedAt + '）', 'success');
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            const msg = String(err);
+            // 他の人が先に更新していた場合は、上書きするか確認する
+            if (msg.indexOf('先に共有データを更新') !== -1) {
+              if (confirm(msg + '\n\nこのまま自分の内容で上書きしますか？\n（「キャンセル」を押すと、先に最新を読み込めます）')) {
+                this.save(true);
+              }
+              return;
+            }
+            LogPanel.add('共有への保存に失敗: ' + err, 'error');
+          })
+          .saveSharedWork({
+            mode: PcaPreview.mode,
+            entries: PcaPreview.entries,
+            carryRows: PcaPreview.carryRows,
+            carryMode: PcaPreview.carryMode,
+            carryName: PcaPreview.carryName
+          }, force ? null : this.revision, !!force);
+      },
+
+      clear() {
+        if (!Access.canEdit) {
+          LogPanel.add('共有作業の更新には編集者以上の権限が必要です', 'error');
+          return;
+        }
+        if (!confirm('共有されている作業内容を空にします。他のメンバーの画面からも消えます。よろしいですか？')) return;
+
+        showLockScreen('共有を空にしています...');
+        google.script.run
+          .withSuccessHandler(res => {
+            hideLockScreen();
+            if (!res) { LogPanel.add('共有の消去結果を取得できませんでした', 'error'); return; }
+            this.revision = res.revision;
+            this._setStatus('共有データはまだありません');
+            LogPanel.add('共有作業を空にしました（版 ' + res.revision + '）', 'success');
+          })
+          .withFailureHandler(err => {
+            hideLockScreen();
+            LogPanel.add('共有の消去に失敗: ' + err, 'error');
+          })
+          .clearSharedWork();
+      },
+
+      /** 起動時に共有の状態だけ確認しておく（内容は読み込まない）。 */
+      peek() {
+        google.script.run
+          .withSuccessHandler(state => {
+            if (!state) return;   // 応答が空でも画面を壊さない
+            this.revision = state.revision;
+            if (state.data) {
+              const count = (state.data.entries || []).length;
+              this._setStatus('共有あり: ' + count + ' 明細（最終更新 ' + state.savedBy + ' / ' + state.savedAt + '）');
+            } else {
+              this._setStatus('共有データはまだありません');
+            }
+          })
+          .withFailureHandler(() => { /* 取得できなくても本体は動かす */ })
+          .loadSharedWork();
+      }
+    };
+
+    // ==================================================================
     // MasterPanel：勘定科目マスタの編集パネル
     // ------------------------------------------------------------------
     // 「最初は空欄で出しておいて、決まったものから足していく」運用のため、
@@ -2321,6 +2783,7 @@
         panel.style.display = isOpen ? 'none' : 'block';
         if (!isOpen) {
           this.select(this.current);
+          Access.applyToMasterPanel();   // 管理者以外は閲覧のみにする
           panel.scrollIntoView({ behavior: 'smooth' });
         }
       },
@@ -2448,6 +2911,8 @@
           '全 ' + this.rows.length + ' 件 / 表示 ' + visible.length + ' 件'
           + (unlinked ? ' / PCA未設定 ' + unlinked + ' 件' : '')
           + (this.dirty ? ' ⚠ 未保存' : '');
+
+        Access.applyToMasterPanel();   // 描き直したあとも閲覧専用を維持する
       },
 
       _buildCell(col, row, index) {
@@ -4310,7 +4775,11 @@
         }
       });
 
-      MasterPanel.reload();
+      // 権限を取得してから画面を出し分ける
+      Access.init(() => {
+        MasterPanel.reload();
+        SharedWork.peek();
+      });
 
       // 前回出力CSVの読み込み（追記モード）
       document.getElementById('input-prev-csv').addEventListener('change', e => {
