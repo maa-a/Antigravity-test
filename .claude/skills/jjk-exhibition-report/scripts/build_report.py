@@ -51,6 +51,10 @@ PAST_ORDER, PLAN_GOODS, FUTURE = CFG.PAST_ORDER, CFG.PLAN_GOODS, CFG.FUTURE
 RESUPPLY = {str(k): v for k, v in getattr(CFG, 'RESUPPLY', {}).items()}
 RESUPPLY_DETAIL = getattr(CFG, 'RESUPPLY_DETAIL', [])
 RESUPPLY_NOTE = getattr(CFG, 'RESUPPLY_NOTE', '')
+# 日報側の販売可能数に追納が織り込まれた場合は加算しない（二重計上の防止）
+RESUPPLY_IN_SRC = getattr(CFG, 'RESUPPLY_IN_SOURCE', False)
+RESUPPLY_TOTAL = sum(x[2] for x in RESUPPLY_DETAIL) if RESUPPLY_IN_SRC else sum(RESUPPLY.values())
+RESUPPLY_HOW = ('日報の販売可能数に反映済み' if RESUPPLY_IN_SRC else '本レポートで販売可能数に加算')
 DECIDED = {int(k): v for k, v in getattr(CFG, 'DECIDED_ORDER', {}).items()}
 SHELF = {int(k): v for k, v in getattr(CFG, 'SHELF_LIFE', {}).items()}
 
@@ -291,8 +295,9 @@ _model_only = [j for j in TJ if str(j) not in SHORTAGE and PRED[j] > R('札幌',
 _nmof = dict(T)
 _noresupply = [j for j in _shj if '追納困難' in SHORTAGE[str(j)]]
 _gap_of = {j: _mix[j] * _futq - _rest_of[j] for j in TJ}
-_attp = ATT['札幌'][:5]
-_attpred = sum(_attp) * sum(ATT['大阪']) / sum(ATT['大阪'][:5])
+# 開催中会場の会期動員予測：実績日数ぶんの入場者を、大阪の同日数→全会期の伸び率で外挿する
+_attp = ATT[CUR][:BASE]
+_attpred = sum(_attp) * sum(ATT['大阪'][:RUN['大阪']]) / sum(ATT['大阪'][:BASE])
 
 blocks = [
     ('■ 結論サマリー', [
@@ -302,8 +307,10 @@ blocks = [
         ('　札幌 全物販予測',
          '数量 %s個／金額 %s円　→ 東京(初回)対比 %.1f%%　※コナン実績の北海道13.3%%を下回る水準'
          % (f'{_sallq:,.0f}', f'{_salla:,.0f}', _salla / TKA * 100)),
-        ('　札幌 入場者予測', '%s人（委員会予測18,000人の43%%／LEGS予測14,000人の56%%）＝計画を大幅に下回る'
-         % f'{_attpred:,.0f}'),
+        ('　%s 入場者予測' % CUR,
+         '%s人（%s実績%s人 × 大阪の%s→%d日 伸び率）。委員会予測18,000人の%.0f%%／LEGS予測14,000人の%.0f%%'
+         % (f'{_attpred:,.0f}', NB, f'{sum(_attp):,}', NB, RUN['大阪'],
+            _attpred / 18000 * 100, _attpred / 14000 * 100)),
         ('② LEGS物販構成比の推移',
          '金額：%s→札幌%.1f%%(予測)　数量：%s→札幌%.1f%%(予測)'
          % ('→'.join('%s%.1f%%' % (v, vt(v, 0, DATA_DAYS[v], legs=True)[1] / vt(v, 0, DATA_DAYS[v])[1] * 100)
@@ -325,10 +332,11 @@ blocks = [
         ('★残在庫想定の反映',
          '在庫フロー台帳の「%s」列 %s個を採用（梅田会場後の検品結果まで反映済み）。'
          % (STOCK_STAGE, f'{_realtot:,}')),
-        ('★札幌への追納（実施済）',
-         '%s：%s　計%s個。倉庫在庫からの出荷なので全社在庫は不変'
-         % (RESUPPLY_NOTE, '／'.join('%s %s個' % (dict(T)[int(k)], f'{v:,}')
-                                    for k, v in RESUPPLY.items()), f'{sum(RESUPPLY.values()):,}')),
+        ('★%s への追納（実施済）' % CUR,
+         '%s：%s　計%s個（%s）。倉庫在庫からの出荷なので全社在庫は不変'
+         % (RESUPPLY_NOTE,
+            '／'.join('%s %s個' % (nm, f'{q:,}') for _d, nm, q, _n in RESUPPLY_DETAIL if q),
+            f'{RESUPPLY_TOTAL:,}', RESUPPLY_HOW)),
         ('　追納後になお必要な追納',
          '%s個（会期20日予測が販売可能数を上回る残差）' % f'{_resup:,}'),
         ('　石川以降 供給可能在庫',
@@ -1042,7 +1050,8 @@ r += 1
 bal = [('残在庫想定（%s／総計）' % STOCK_STAGE, sum(INV[str(j)]['real'] for j in TJ), INT,
         '在庫フロー台帳の最終「実在庫」列。会場ごとの追加発注→販売→検品を積み上げた値'),
        ('　うち札幌会場へ納品（初回＋追納）', '=%s!S%d' % (S1, tot), INT,
-        '札幌の販売可能数。%s（LEGS計%s個）を含む' % (RESUPPLY_NOTE, f'{sum(RESUPPLY.values()):,}')),
+        '%sの販売可能数。%s（LEGS計%s個・%s）を含む'
+        % (CUR, RESUPPLY_NOTE, f'{RESUPPLY_TOTAL:,}', RESUPPLY_HOW)),
        ('　差引 倉庫残（石川以降へ即出荷可）', '=B%d-B%d' % (r, r + 1), INT, '札幌へ引き当てた分を除いた手元在庫'),
        ('札幌 会期20日 予測販売数', '=%s!P%d' % (S1, tot), INT, ''),
        ('　うち札幌へ追納が必要', 'PLACEHOLDER_RESUP', INT,
@@ -2262,7 +2271,7 @@ for i, h in enumerate(['商品', '発注／納品日', '充当先', '備考'], 1
     c.font = H2
 po0 = r + 1
 _PO = list(PAST_ORDER) + [('― 開催中会場への追納 ―', '', '', RESUPPLY_NOTE)] + [
-    (nm, dt, '札幌会場（%s個）' % f'{q:,}', note) for dt, nm, q, note in RESUPPLY_DETAIL]
+    (nm, dt, '%s会場（%s個）' % (CUR, f'{q:,}'), note) for dt, nm, q, note in RESUPPLY_DETAIL]
 for k, (a, b, c_, d_) in enumerate(_PO):
     ws.cell(po0 + k, 1, a)
     ws.cell(po0 + k, 2, b)
@@ -2730,7 +2739,7 @@ _row12(SN1, '%s列' % _L(SN1, H1R, '数量構成比'), _HD(SN1, H1R, '数量構�
        '③の按分構成比（%s側ウェイト）に使う' % CUR)
 _row12(SN1, '%s列' % _L(SN1, H1R, '販売可能数'), _HD(SN1, H1R, '販売可能数'),
        '（数式なし＝納品数の実績入力）', '%s個' % _f12(_av1),
-       '%s の追納分（LEGS計%s個）を加算済み' % (RESUPPLY_NOTE, _f12(sum(RESUPPLY.values()))))
+       '%s の追納分（LEGS計%s個）を含む（%s）' % (RESUPPLY_NOTE, _f12(RESUPPLY_TOTAL), RESUPPLY_HOW))
 _row12(SN1, '%s列' % _L(SN1, H1R, '消化率'), _HD(SN1, H1R, '消化率'), _FX(SN1, H1R, D1, '消化率'),
        '%s÷%s ＝ %.1f%%' % (_f12(_pr1), _f12(_av1), (_pr1 / _av1 * 100) if _av1 else 0),
        '90%超で「要注意」判定')
