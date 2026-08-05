@@ -14,6 +14,7 @@ usage:
   sales.json  会場別 商品別の日次販売・在庫
   att.json    会場別 日次入場者数
   stock.json  商品別 残在庫想定（在庫フロー台帳の最終「実在庫」列）
+  wms.json    商品別 倉庫の実棚在庫（--wms を渡したときのみ）
 """
 import argparse
 import datetime
@@ -251,6 +252,58 @@ def gcl_(c):
     return get_column_letter(c)
 
 
+def read_wms(path):
+    """ロジ（倉庫WMS）の在庫データを読む。1行1商品で、列は見出し文字列から判定する。
+
+    「在庫数(引当数を含む)」が倉庫の実棚残。出荷済みぶんは既に引かれているので、
+    在庫フロー台帳から計算した倉庫残より実態に近い。
+    """
+    wb = openpyxl.load_workbook(path, data_only=True)
+    ws = wb[wb.sheetnames[0]]
+    hr = None
+    for r in range(1, min(ws.max_row, 20) + 1):
+        vals = [str(ws.cell(r, c).value or '') for c in range(1, ws.max_column + 1)]
+        if '商品ID' in vals and any('在庫数' in v for v in vals):
+            hr = r
+            break
+    if hr is None:
+        raise RuntimeError('%s: ロジ在庫のヘッダ行が見つからない' % path)
+
+    def col(*keys, **kw):
+        exact = kw.get('exact')
+        for c in range(1, ws.max_column + 1):
+            v = str(ws.cell(hr, c).value or '')
+            if exact is not None:
+                if v == exact:
+                    return c
+            elif all(k in v for k in keys):
+                return c
+        return None
+
+    c_jan = col('商品ID')
+    c_stk = col(exact='在庫数(引当数を含む)') or col('在庫数')
+    # 「在庫数(引当数を含む)」も部分一致してしまうので、引当数は完全一致で取る
+    c_alc, c_in = col(exact='引当数'), col(exact='入荷予定数') or col('入荷予定数')
+    c_out, c_li, c_lo = col('出荷予定数'), col('最終入荷日'), col('最終出荷日')
+
+    def _d(x):
+        x = str(x or '')
+        return '%s/%s/%s' % (x[:4], x[4:6].lstrip('0'), x[6:8].lstrip('0')) if len(x) == 8 else ''
+
+    out = {}
+    for r in range(hr + 1, ws.max_row + 1):
+        j = ws.cell(r, c_jan).value
+        if not isinstance(j, (int, float)):
+            continue
+        out[int(j)] = dict(stock=int(_num(ws.cell(r, c_stk).value)),
+                           alloc=int(_num(ws.cell(r, c_alc).value)) if c_alc else 0,
+                           inbound=int(_num(ws.cell(r, c_in).value)) if c_in else 0,
+                           shipplan=int(_num(ws.cell(r, c_out).value)) if c_out else 0,
+                           last_in=_d(ws.cell(r, c_li).value) if c_li else '',
+                           last_out=_d(ws.cell(r, c_lo).value) if c_lo else '')
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', required=True)
@@ -258,6 +311,8 @@ def main():
     ap.add_argument('--ledger', required=True,
                     help='在庫フロー台帳のxlsx（【清算…_検品差異】シートを含むもの）')
     ap.add_argument('--ledger-sheet', default=None, help='台帳シート名を明示する場合')
+    ap.add_argument('--wms', default=None,
+                    help='ロジ（倉庫WMS）の在庫データxlsx。倉庫の実棚残として台帳より優先する')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
 
@@ -280,6 +335,19 @@ def main():
     print('残在庫  商品%4d  残在庫合計%s  ／ SET商品%d件（発注数はバラ単位のため在庫判定には使わない）'
           % (len(led), format(sum(v['stock'] for v in led.values()), ','),
              sum(1 for v in led.values() if v['set_size'] > 1)))
+    if a.wms:
+        wms = read_wms(a.wms)
+        json.dump({str(k): v for k, v in wms.items()},
+                  open(os.path.join(a.out, 'wms.json'), 'w'), ensure_ascii=False)
+        print('ロジ在庫 商品%4d  在庫数合計%s  ／ 引当%s・入荷予定%s'
+              % (len(wms), format(sum(v['stock'] for v in wms.values()), ','),
+                 format(sum(v['alloc'] for v in wms.values()), ','),
+                 format(sum(v['inbound'] for v in wms.values()), ',')))
+        nol = [j for j in led if j not in wms]
+        if nol:
+            warns.append('ロジ在庫データに無いJAN %d件（台帳の値をそのまま使う）: %s'
+                         % (len(nol), nol[:5]))
+
     bad = [j for j, v in led.items() if v['stock'] < 0]
     if bad:
         warns.append('台帳の残在庫が負の品目 %d件: %s' % (len(bad), bad[:5]))
