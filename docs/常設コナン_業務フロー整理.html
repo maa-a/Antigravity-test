@@ -19,7 +19,14 @@
       color-scheme: light;
     }
     body { background:#fff; font-size: 10.5pt; line-height: 1.7; }
-    .wrap { max-width:none; padding:0; gap:1.5rem; }
+    /* flex/grid の子要素は改ページ制御が効かないので、印刷時は通常フローに戻す */
+    .wrap { display: block; max-width:none; padding:0; }
+    section { display: block; margin: 0 0 1.4rem; }
+    section > * + * { margin-top: .9rem; }
+    ol.steps, ul.plain { display: block; }
+    ol.steps li, ul.plain li { margin-bottom: .3rem; }
+    .masthead { display: block; }
+    .masthead > * + * { margin-top: .6rem; }
 
     /* スクロール枠はページをまたげないので印刷では解除する */
     .scroll, .plate { overflow: visible !important; }
@@ -28,13 +35,14 @@
     tr { break-inside: avoid; }
 
     /* 図が1ページに収まるように上限をかける */
-    .plate svg { max-height: 195mm; width: auto; margin: 0 auto; }
+    .plate svg { max-height: 190mm; max-width: 100%; width: auto; margin: 0 auto; }
 
-    /* 途中で割りたくないのは小さい塊だけ。節全体には掛けない */
-    .card, figure, blockquote { break-inside: avoid; }
+    /* 1章＝1ページ。章の中身は絶対に分割しない */
+    section { break-before: page; break-inside: avoid; break-after: auto; }
+    section:first-of-type { break-before: avoid; }
+    .scroll, figure, .card, blockquote, .verdict, table { break-inside: avoid; }
     h1, h2, h3 { break-after: avoid; }
     figcaption { break-before: avoid; }
-    section { break-inside: auto; }
 
     .cards { gap: .6rem; }
     .card { padding: .7rem .8rem; }
