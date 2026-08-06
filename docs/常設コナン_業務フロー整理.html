@@ -10,11 +10,35 @@
   img, svg { display: block; max-width: 100%; }
   table { border-collapse: collapse; }
   @media print {
-    body { background: #fff !important; color: #000 !important; }
-    section { break-inside: avoid-page; }
-    figure, .card, .scroll { break-inside: avoid; }
-    .wrap { padding: 0 !important; gap: 2rem !important; }
-    .plate { border: 1px solid #ccc !important; }
+    /* 印刷時は必ずライトテーマで出す */
+    :root {
+      --paper:#fff; --plate:#fff; --ink:#151C27; --ink-soft:#4C5768; --ink-faint:#6D7686;
+      --rule:#C9D0DA; --rule-soft:#E3E7EE; --accent:#2D4A78; --accent-bg:#E7EDF6;
+      --agreed:#2C6650; --agreed-bg:#E3EFEA; --pending:#8A5D14; --pending-bg:#F4EBDA;
+      --against:#8C3A38; --against-bg:#F5E5E4;
+      color-scheme: light;
+    }
+    body { background:#fff; font-size: 10.5pt; line-height: 1.7; }
+    .wrap { max-width:none; padding:0; gap:1.5rem; }
+
+    /* スクロール枠はページをまたげないので印刷では解除する */
+    .scroll, .plate { overflow: visible !important; }
+    table { min-width: 0; font-size: 9pt; }
+    thead { display: table-header-group; }      /* 表が続くページで見出し行を再表示 */
+    tr { break-inside: avoid; }
+
+    /* 図が1ページに収まるように上限をかける */
+    .plate svg { max-height: 195mm; width: auto; margin: 0 auto; }
+
+    /* 途中で割りたくないのは小さい塊だけ。節全体には掛けない */
+    .card, figure, blockquote { break-inside: avoid; }
+    h1, h2, h3 { break-after: avoid; }
+    figcaption { break-before: avoid; }
+    section { break-inside: auto; }
+
+    .cards { gap: .6rem; }
+    .card { padding: .7rem .8rem; }
+    th, td { padding: .45rem .6rem; }
   }
 </style>
 </head>
