@@ -44,8 +44,9 @@
     h1, h2, h3 { break-after: avoid; }
     figcaption { break-before: avoid; }
 
-    .cards { gap: .6rem; }
-    .card { padding: .7rem .8rem; }
+    /* グリッドの行送りは改ページ制御が効かないので、印刷では1段組の通常フローにする */
+    .cards { display: block; }
+    .cards > .card { margin-bottom: .6rem; padding: .7rem .85rem; }
     th, td { padding: .45rem .6rem; }
   }
 </style>
