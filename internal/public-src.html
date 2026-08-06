@@ -1,0 +1,399 @@
+<title>委員会運営 業務フロー設計</title>
+<style>
+  :root {
+    --paper:#F6F7F9; --plate:#FFFFFF; --ink:#151C27; --ink-soft:#4C5768; --ink-faint:#7E8899;
+    --rule:#D9DEE6; --rule-soft:#E8EBF0; --accent:#2D4A78; --accent-bg:#E7EDF6;
+    --agreed:#2C6650; --agreed-bg:#E3EFEA; --pending:#8A5D14; --pending-bg:#F4EBDA;
+    --against:#8C3A38; --against-bg:#F5E5E4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:#12161D; --plate:#FFFFFF; --ink:#E4E8EF; --ink-soft:#A3ADBD; --ink-faint:#78828F;
+      --rule:#2B323D; --rule-soft:#232932; --accent:#8FB2E0; --accent-bg:#1B2635;
+      --agreed:#7CC0A2; --agreed-bg:#17251F; --pending:#D2A557; --pending-bg:#262015;
+      --against:#DE908D; --against-bg:#2A1B1B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#12161D; --plate:#FFFFFF; --ink:#E4E8EF; --ink-soft:#A3ADBD; --ink-faint:#78828F;
+    --rule:#2B323D; --rule-soft:#232932; --accent:#8FB2E0; --accent-bg:#1B2635;
+    --agreed:#7CC0A2; --agreed-bg:#17251F; --pending:#D2A557; --pending-bg:#262015;
+    --against:#DE908D; --against-bg:#2A1B1B;
+  }
+  :root[data-theme="light"] {
+    --paper:#F6F7F9; --plate:#FFFFFF; --ink:#151C27; --ink-soft:#4C5768; --ink-faint:#7E8899;
+    --rule:#D9DEE6; --rule-soft:#E8EBF0; --accent:#2D4A78; --accent-bg:#E7EDF6;
+    --agreed:#2C6650; --agreed-bg:#E3EFEA; --pending:#8A5D14; --pending-bg:#F4EBDA;
+    --against:#8C3A38; --against-bg:#F5E5E4;
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", "Noto Sans JP", "Meiryo", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.85; font-feature-settings: "palt" 1;
+  }
+  .wrap {
+    max-width: 60rem; margin: 0 auto;
+    padding: clamp(2rem, 5vw, 4.5rem) clamp(1.1rem, 4vw, 3rem) 6rem;
+    display: flex; flex-direction: column; gap: clamp(2.6rem, 5vw, 3.8rem);
+  }
+
+  .masthead { display: flex; flex-direction: column; gap: .85rem; }
+  .eyebrow { font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  h1 {
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+    font-size: clamp(1.75rem, 4.4vw, 2.6rem); line-height: 1.35; font-weight: 600;
+    text-wrap: balance; letter-spacing: .01em;
+  }
+  .standfirst { color: var(--ink-soft); max-width: 46em; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: .4rem 1.4rem;
+    padding-top: .9rem; border-top: 1px solid var(--rule);
+    font-size: .8rem; color: var(--ink-faint); font-variant-numeric: tabular-nums;
+  }
+
+  section { display: flex; flex-direction: column; gap: 1.15rem; }
+  h2 {
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+    font-size: clamp(1.18rem, 2.6vw, 1.5rem); font-weight: 600; line-height: 1.45;
+    text-wrap: balance; padding-bottom: .55rem; border-bottom: 2px solid var(--ink);
+  }
+  h3 { font-size: .95rem; font-weight: 700; letter-spacing: .02em; color: var(--accent); }
+  p { max-width: 62em; }
+  .lead { color: var(--ink-soft); }
+
+  .note {
+    background: var(--accent-bg); border-left: 3px solid var(--accent);
+    padding: 1.1rem 1.3rem; display: flex; flex-direction: column; gap: .55rem;
+  }
+
+  .scroll { overflow-x: auto; border: 1px solid var(--rule); }
+  table { border-collapse: collapse; width: 100%; min-width: 32rem; font-size: .87rem; }
+  th, td { text-align: left; padding: .62rem .8rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; line-height: 1.7; }
+  thead th {
+    font-size: .74rem; letter-spacing: .08em; color: var(--ink-faint); text-transform: uppercase;
+    border-bottom: 1px solid var(--rule); font-weight: 700; white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td:first-child { font-weight: 600; }
+
+  .pill { display: inline-block; white-space: nowrap; font-size: .72rem; font-weight: 700; letter-spacing: .04em; padding: .12rem .55rem; border-radius: 2px; }
+  .p-ok { background: var(--agreed-bg); color: var(--agreed); }
+  .p-wip { background: var(--pending-bg); color: var(--pending); }
+  .p-no { background: var(--against-bg); color: var(--against); }
+
+  figure { display: flex; flex-direction: column; gap: .6rem; }
+  .plate { background: var(--plate); border: 1px solid var(--rule); padding: 1.2rem .8rem; overflow-x: auto; }
+  .plate pre.mermaid { display: flex; justify-content: center; min-width: 20rem; }
+  figcaption { font-size: .8rem; color: var(--ink-faint); line-height: 1.7; }
+
+  ol.steps { display: flex; flex-direction: column; gap: .45rem; padding-left: 1.35rem; max-width: 62em; }
+  ol.steps li::marker { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+  ul.plain { display: flex; flex-direction: column; gap: .35rem; padding-left: 1.2rem; max-width: 62em; }
+  ul.plain li::marker { color: var(--ink-faint); }
+
+  .foot { font-size: .8rem; color: var(--ink-faint); border-top: 1px solid var(--rule); padding-top: 1rem; }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">委員会組成にともなう処理フローの設計</div>
+    <h1>共同出資による常設店舗運営の業務フロー</h1>
+    <p class="standfirst">複数社の共同出資で組成した委員会が運営する常設店舗について、会計・支払い・原価・在庫の処理フローを整理したものです。既存の全社フローと、委員会運営で新たに必要になるフローの差分を明らかにし、月次締めに間に合う体制を設計することを目的としています。</p>
+    <div class="meta">
+      <span>作成 2026/8/5</span>
+      <span>対象 委員会運営の処理フロー</span>
+      <span>公開用（社名・個人名は役割表記に置き換えています）</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>1. 前提 — 3つのPLが同時に存在する</h2>
+    <p>本件は複数社の共同出資による<strong>委員会方式</strong>で運営されます。そのため運営会社の内部には、性格の異なる3つのPLが同時に存在します。これがフロー設計の制約条件になります。</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>PL</th><th>作成主体</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>① 委員会PL</td><td>顧問会計事務所</td><td>委員会そのものの損益。委員会へ毎月試算表を提出（<strong>5営業日</strong>）</td></tr>
+          <tr><td>② 出資者としてのPL</td><td>運営会社</td><td>出資者としての持分・投資回収</td></tr>
+          <tr><td>③ 受託者としてのPL</td><td>運営会社</td><td>委員会から委託された運営・物販（売上の一定割合を委員会に戻す／在庫リスクは運営会社が負う）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <p><strong>3つのPLを突合し、差異なく連動させることが本フロー設計の目的です。</strong>3つが繋がるためには、入口である発注・支払いの時点で正しい区分が付いている必要があります。ここが設計上の核心になります。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. 登場する役割</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>役割</th><th>担当範囲</th></tr></thead>
+        <tbody>
+          <tr><td>営業（事業部担当）</td><td>発注・依頼の起点。収支計画を持つ</td></tr>
+          <tr><td>事業部推進担当</td><td>委員会対応と社内調整</td></tr>
+          <tr><td><strong>管理会計担当</strong></td><td>情報集約のハブ。帳票作成、会計事務所連携、在庫・入出庫管理、データ整備</td></tr>
+          <tr><td>スキーム設計担当</td><td>ワークフロー・支払いスキームの設計</td></tr>
+          <tr><td>締め責任者（管理部門）</td><td>全社の締めに関する責任・権限</td></tr>
+          <tr><td>営業管理 主管</td><td>既存フローの実務主管。配下にビジネスアシスタント</td></tr>
+          <tr><td>経理担当</td><td>委員会口座からの支払い実行</td></tr>
+          <tr><td>会計事務所</td><td>会計システムへの仕訳入力、委員会PL・試算表の作成</td></tr>
+          <tr><td>在庫管理担当／入出庫担当</td><td>在庫・入出庫の実務</td></tr>
+          <tr><td>SCM</td><td>協力先からの最終見積の受領・連携</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. フロー① 委員会口座からの支払い　<span class="pill p-ok">合意済み</span></h2>
+    <p class="lead">委員会は運営会社とは<strong>別の銀行口座</strong>を持ちます。既存の全社フローでは物理的に処理できないため、専用のフローを敷きます。この方式は管理部門側の合意を得ています。</p>
+    <ol class="steps">
+      <li>営業が発注を起案する（初期投資・什器・制作費など）。</li>
+      <li><strong>ワークフロー承認</strong>を通し、委員会の意思決定として承認を取る。</li>
+      <li>承認後、<strong>案件専用のチャット</strong>に情報を集約する。会計事務所もここに参加する。</li>
+      <li>管理会計担当が経理担当と連携し、<strong>委員会名義の口座</strong>から支払いを実行する。</li>
+      <li>管理会計担当が処理内容を<strong>会計事務所へ報告・連携</strong>する（証憑・按分・勘定科目の指定を含む）。</li>
+      <li>会計事務所が<strong>会計システムへ仕訳入力</strong>する。</li>
+      <li>月次で試算表を作成し、<strong>5営業日以内に委員会へ提出</strong>。同じ数字を3つのPLの突合に回す。</li>
+    </ol>
+    <figure>
+      <div class="plate">
+<pre class="mermaid">
+flowchart TD
+    A["営業&lt;br/&gt;発注起案"] --> B["ワークフロー承認"]
+    B --> C["案件専用チャット&lt;br/&gt;＝情報集約点"]
+    C --> D["管理会計担当&lt;br/&gt;証憑・按分・科目を確定"]
+    D --> E["経理担当&lt;br/&gt;委員会口座から支払"]
+    D --> F["会計事務所&lt;br/&gt;会計システムへ仕訳入力"]
+    E --> F
+    F --> G["委員会PL・試算表"]
+    G --> H["委員会へ提出&lt;br/&gt;5営業日以内"]
+    D --> I["運営会社側PL&lt;br/&gt;（出資者／受託者）"]
+    G -.突合.-> I
+
+    style C fill:#2D4A78,color:#fff,stroke:#2D4A78
+    style D fill:#2D4A78,color:#fff,stroke:#2D4A78
+    style H fill:#2C6650,color:#fff,stroke:#2C6650
+</pre>
+      </div>
+      <figcaption>青＝管理会計担当が担う集約点。緑＝委員会に対する提出義務のゴール。</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>4. フロー② 物販原価の現行フロー</h2>
+    <p class="lead">全社で運用されている既存フローです。多店舗を一元管理するために積み上げられてきたもので、管理部門はこの踏襲を基本方針としています。</p>
+    <ol class="steps">
+      <li>協力先から<strong>最終見積</strong>が出る。</li>
+      <li>SCMが受領し、事業部担当に最終金額を連携。担当が自分の収支計画に収まっているかを確認する。</li>
+      <li>SCM／FE部が<strong>仕入伝票</strong>を起票し、ビジネスアシスタントへ依頼する。</li>
+      <li>ビジネスアシスタントを経由して<strong>営業管理</strong>へ情報が流れる。</li>
+      <li>営業管理が計上。原価は一旦<strong>非在庫で一括計上</strong>され、後から在庫へ振り替える。</li>
+      <li>締め後に<strong>按分</strong>を対応する。</li>
+      <li><strong>財務管理表</strong>（全社の経営判断帳票）に集約される。</li>
+    </ol>
+    <figure>
+      <div class="plate">
+<pre class="mermaid">
+flowchart TD
+    A["協力先&lt;br/&gt;最終見積"] --> B["SCM"]
+    B --> C["営業（事業部担当）&lt;br/&gt;収支計画と照合"]
+    B --> D["SCM／FE部&lt;br/&gt;仕入伝票を起票"]
+    D --> E["ビジネスアシスタント"]
+    E --> F["営業管理"]
+    F --> G["非在庫で一括計上"]
+    G --> H["締め後に按分"]
+    H --> I["在庫へ振替&lt;br/&gt;やり直しが発生"]
+    I --> J["財務管理表&lt;br/&gt;全社"]
+
+    style G fill:#8C3A38,color:#fff,stroke:#8C3A38
+    style H fill:#8C3A38,color:#fff,stroke:#8C3A38
+    style I fill:#8C3A38,color:#fff,stroke:#8C3A38
+</pre>
+      </div>
+      <figcaption>赤の3工程が、委員会報告（5営業日締め）と両立しない部分です。原価が単月でまとめて計上されるため正しい事業判断がしづらく、按分が締め後になるため月次提出に間に合いません。振替のやり直し負荷は実務側が負います。</figcaption>
+    </figure>
+    <h3>現行フローの課題</h3>
+    <ul class="plain">
+      <li>原価が単月でまとめて乗り、正しい事業判断ができない</li>
+      <li>期間配分のルールが期間限定店舗を前提に作られており、常設店舗に適合しない</li>
+      <li>按分が締め後対応のため、5営業日締めの委員会報告に間に合わない</li>
+      <li>金額の差異が発生すると、その都度の問い合わせ対応が発生している</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>5. フロー③ 提案フロー</h2>
+    <p>現行フローを<strong>壊さない</strong>ことが前提です。壊すのではなく、<strong>「非在庫で計上して後から直す」を「発注時点で確定させる」に前倒しする</strong>だけの変更です。その前倒しを担う役割として管理会計担当が入り、営業管理・経理へは<strong>完成したデータを渡します</strong>。</p>
+    <ol class="steps">
+      <li><strong>営業からの依頼を案件専用チャット1本</strong>に集約する。営業が「これは委員会の支払いだからA、これは物販だからB」と判断・仕分けする必要をなくす。仕分けは管理会計担当が行う。</li>
+      <li>管理会計担当が<strong>発注段階で</strong>、在庫／非在庫の区分・按分（固定費・共通費）・品目コード・委員会／運営会社の帰属を確定させる。</li>
+      <li>確定内容を<strong>加工済みデータとして配布</strong>する。
+        <ul class="plain">
+          <li><strong>営業管理へ</strong> … 取り込みたい形式のまま出力したデータを渡す。取り込むだけの作業になる。</li>
+          <li><strong>会計事務所へ</strong> … 仕訳入力データ。</li>
+          <li><strong>経理へ</strong> … 支払データ。<strong>委員会・出資者各社へ</strong> … 提出帳票。</li>
+        </ul>
+      </li>
+      <li>在庫・入出庫は各担当と連携し、管理会計担当側で整合を取る。</li>
+      <li>月次で3つのPLを突合し、5営業日以内に試算表を委員会へ提出する。帳票を見れば差異の理由が分かる状態にし、問い合わせ自体を発生させない。</li>
+    </ol>
+    <figure>
+      <div class="plate">
+<pre class="mermaid">
+flowchart TD
+    A["営業&lt;br/&gt;依頼・発注"] --> B["案件専用チャット&lt;br/&gt;依頼窓口を1本化"]
+    B --> C["管理会計担当&lt;br/&gt;【発注段階で確定】&lt;br/&gt;在庫／非在庫・按分・品目コード・帰属"]
+
+    C --> D["データ生成アプリ"]
+    D --> D1["借方 仕訳入力データ"]
+    D --> D2["貸方 データ"]
+    D --> D3["財務管理表用 出力"]
+
+    D1 --> E["会計事務所&lt;br/&gt;会計システム"]
+    D2 --> E
+    D3 --> F["営業管理&lt;br/&gt;取り込むだけ"]
+    C --> G["経理担当&lt;br/&gt;支払実行"]
+    C --> H["在庫・入出庫&lt;br/&gt;各担当"]
+
+    E --> I["① 委員会PL"]
+    F --> J["財務管理表&lt;br/&gt;全社"]
+    H --> I
+    G --> I
+
+    I --> K["② 出資者PL"]
+    I --> L["③ 受託者PL"]
+    K --> M["3PL 突合・連動"]
+    L --> M
+    I --> M
+    J -.整合.-> M
+    M --> N["委員会へ試算表提出&lt;br/&gt;5営業日以内"]
+
+    style B fill:#2D4A78,color:#fff,stroke:#2D4A78
+    style C fill:#2D4A78,color:#fff,stroke:#2D4A78
+    style D fill:#5B4B8A,color:#fff,stroke:#5B4B8A
+    style M fill:#2C6650,color:#fff,stroke:#2C6650
+    style N fill:#2C6650,color:#fff,stroke:#2C6650
+</pre>
+      </div>
+      <figcaption>紫＝仕訳入力データを生成するアプリ。借方の仕訳入力データは会計事務所用に作成済みで、貸方・財務管理表用出力は追加機能として対応できます。伝票量の増加はこの仕組みで吸収されます。</figcaption>
+    </figure>
+
+    <h3>現行フローとの差分</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>項目</th><th>現行（フロー②）</th><th>提案（フロー③）</th></tr></thead>
+        <tbody>
+          <tr><td>在庫／非在庫の判断</td><td>計上時に非在庫 → 後から振替</td><td>発注時に確定。振替なし</td></tr>
+          <tr><td>按分</td><td>締め後に対応</td><td>発注時に確定</td></tr>
+          <tr><td>依頼窓口</td><td>営業が相手を判断して振り分け</td><td>チャット1本。仕分けは管理会計担当</td></tr>
+          <tr><td>営業管理の作業</td><td>伝票処理＋按分＋振替＋問い合わせ対応</td><td>受け取ったデータを取り込むだけ</td></tr>
+          <tr><td>日報</td><td>まとめが必要</td><td>不要（必要形式で出力して渡す）</td></tr>
+          <tr><td>仕訳入力</td><td>手作業</td><td>アプリで自動生成</td></tr>
+          <tr><td>金額差異</td><td>都度の問い合わせ対応</td><td>帳票で自己説明。問い合わせ不要</td></tr>
+          <tr><td>期間配分ルール</td><td>期間限定店舗前提のまま適用</td><td>実態に紐づけた配分に改める</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>6. 体制 — 性質で担当を分ける</h2>
+    <p class="lead">実務を担える人員が1名に集中していた状態から、2名体制に移行します。全社の窓口は2本になりますが、<strong>事業部から見た依頼先は常に1人</strong>になります。</p>
+    <figure>
+      <div class="plate">
+<pre class="mermaid">
+flowchart LR
+    P["期間限定店舗&lt;br/&gt;事業部"] --> X
+    Q["常設店舗&lt;br/&gt;事業部"] --> Y
+    R["地域展開&lt;br/&gt;事業部"] --> Y
+
+    subgraph OPS["営業管理（2本立て）"]
+        direction TB
+        X["営業管理 主管&lt;br/&gt;期間限定店舗&lt;br/&gt;（既存フロー維持）"]
+        Y["管理会計担当&lt;br/&gt;常設 ＋ 地域展開&lt;br/&gt;（発注段階確定フロー）"]
+    end
+
+    X --> Z["財務管理表／全社"]
+    Y --> Z
+
+    style Y fill:#2D4A78,color:#fff,stroke:#2D4A78
+    style Z fill:#2C6650,color:#fff,stroke:#2C6650
+</pre>
+      </div>
+      <figcaption>緻密さが要求される常設・地域展開と、既存フローで回る期間限定店舗を、業務の性質で分けます。</figcaption>
+    </figure>
+    <h3>この形の利点</h3>
+    <ul class="plain">
+      <li>全社としては窓口が2本だが、<strong>事業部から見れば依頼先は常に1人</strong>でシンプル</li>
+      <li>「実務が1人に集中する」「管理ラインが複数になる」という懸念が構造的に解消する</li>
+      <li>実務を担える人員が1名から2名になり、既存担当の負荷が実際に下がる</li>
+      <li>業務の性質に応じて手順を変えられる</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>7. 月次スケジュール（5営業日締め）</h2>
+    <figure>
+      <div class="plate">
+<pre class="mermaid">
+flowchart LR
+    A["月中&lt;br/&gt;発注・依頼&lt;br/&gt;※ここで区分確定"] --> B["月末&lt;br/&gt;締め"]
+    B --> C["1〜2営業日&lt;br/&gt;データ生成・連携"]
+    C --> D["3営業日&lt;br/&gt;会計事務所 仕訳入力"]
+    D --> E["4営業日&lt;br/&gt;3PL突合・帳票作成"]
+    E --> F["5営業日&lt;br/&gt;委員会へ試算表提出"]
+
+    style A fill:#2D4A78,color:#fff,stroke:#2D4A78
+    style F fill:#2C6650,color:#fff,stroke:#2C6650
+</pre>
+      </div>
+      <figcaption>発注段階で区分が確定していれば5営業日は成立します。締め後に按分・振替を行う現行フローでは、この日程には入りません。出資者からはさらに短い期日での提出要望も出ています。</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>8. 業務範囲と検討状況</h2>
+    <p class="lead">管理会計担当に集約する業務と、2026年7月時点の検討状況です。</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>区分</th><th>業務</th><th>状況</th></tr></thead>
+        <tbody>
+          <tr><td rowspan="3">会計・PL</td><td>3つのPLの突合・連動</td><td><span class="pill p-ok">合意</span></td></tr>
+          <tr><td>会計事務所との連携・情報収集</td><td><span class="pill p-ok">合意</span></td></tr>
+          <tr><td>委員会向け試算表の取りまとめ（5営業日）</td><td><span class="pill p-ok">合意</span></td></tr>
+          <tr><td>支払い</td><td>委員会口座：ワークフロー承認 → 経理連携 → 会計事務所報告</td><td><span class="pill p-ok">合意</span></td></tr>
+          <tr><td rowspan="2">帳票</td><td>委員会・出資者向け帳票の作成／ゼロベース設計</td><td><span class="pill p-ok">合意</span></td></tr>
+          <tr><td>帳票で差異が説明できる状態＝問い合わせゼロ化</td><td><span class="pill p-wip">提案中</span></td></tr>
+          <tr><td rowspan="4">在庫・原価</td><td>在庫管理の整備</td><td><span class="pill p-ok">合意</span></td></tr>
+          <tr><td>入出庫管理</td><td><span class="pill p-ok">合意</span></td></tr>
+          <tr><td>発注段階での按分・在庫／非在庫区分の確定</td><td><span class="pill p-no">協議中</span></td></tr>
+          <tr><td>品目コードの取得</td><td><span class="pill p-no">保留</span></td></tr>
+          <tr><td rowspan="2">依頼窓口</td><td>営業からの依頼をチャット1本に集約</td><td><span class="pill p-wip">委員会分のみ</span></td></tr>
+          <tr><td>物販を含めた集約</td><td><span class="pill p-no">協議中</span></td></tr>
+          <tr><td>体制</td><td>業務の性質による2本立て</td><td><span class="pill p-ok">方向性一致</span></td></tr>
+          <tr><td rowspan="3">システム</td><td>仕訳入力データ生成アプリ（借方）</td><td><span class="pill p-wip">作成済</span></td></tr>
+          <tr><td>追加機能：貸方データ・財務管理表用出力</td><td><span class="pill p-wip">対応可</span></td></tr>
+          <tr><td>営業管理向けデータの整形・提供</td><td><span class="pill p-wip">対応可</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>9. 今後の検討事項</h2>
+    <ol class="steps">
+      <li><strong>在庫／非在庫・按分の区分ルールの確定</strong> — 全社での合意形成が前提となるため、ルール案を先に提示して協議に入る。</li>
+      <li><strong>データ生成アプリの提示</strong> — 借方の仕訳入力データは作成済み。貸方・財務管理表用出力を追加機能として提示する。</li>
+      <li><strong>体制の確定</strong> — 業務の性質による2本立てを正式な形にする。</li>
+      <li><strong>当月発生分の洗い出し</strong> — 大型什器の頭金、制作費、サンプル費、デザイン費など。</li>
+      <li><strong>固定費の按分ルール協議への参加</strong> — 他案件と同時進行で検討が進んでいる。</li>
+    </ol>
+    <p class="foot">本資料は公開用として、社名・個人名・具体的な金額・社内の交渉経緯を除いた構成にしています。委員会方式で店舗を運営する際の、会計処理フロー設計の一例として整理したものです。</p>
+  </section>
+
+</div>
