@@ -248,132 +248,84 @@
   </header>
 
 <style>
-  /* ---- 体制ステップ図 ---- */
-  .orgmap { background: var(--plate); border: 1px solid var(--rule); padding: 1.5rem 1.3rem; }
-  .orgrow { display: grid; grid-template-columns: 1fr auto 1.25fr; align-items: stretch; gap: 0; }
-  .orgcol { display: flex; flex-direction: column; gap: .6rem; padding: 0 1.1rem; }
-  .orgcol:first-child { padding-left: 0; }
-  .orgcol:last-child { padding-right: 0; }
-  .steplabel { font-size: .68rem; letter-spacing: .18em; font-weight: 700; color: var(--accent); }
-  .steptitle {
-    font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
-    font-size: 1rem; font-weight: 600; color: var(--ink);
-    padding-bottom: .45rem; border-bottom: 1px solid var(--rule-soft);
+  /* ---- 体制図 ---- */
+  .orgmatrix {
+    background: var(--plate); border: 1px solid var(--rule);
+    padding: 1.4rem 1.3rem;
+    display: grid; grid-template-columns: 4.6rem 1fr 1fr; gap: .55rem .7rem;
+    align-items: stretch;
   }
-  .boxes { display: flex; flex-direction: column; gap: .55rem; }
-  .boxes.split { flex-direction: row; }
-  .boxes.split > .box { flex: 1; }
-  .box { border: 1px solid var(--rule); background: var(--paper); }
-  .box .bt {
-    font-size: .84rem; font-weight: 700; color: var(--ink);
-    padding: .45rem .6rem; border-bottom: 1px solid var(--rule-soft); text-align: center;
+  .axis {
+    font-size: .78rem; font-weight: 700; color: var(--ink); text-align: center;
+    padding-bottom: .45rem; border-bottom: 2px solid var(--ink);
   }
-  .box .bm { padding: .4rem .6rem; display: flex; flex-direction: column; gap: .12rem; }
-  .box .bm span { font-size: .72rem; line-height: 1.6; color: var(--ink-soft); }
-  .box.on { border-color: var(--accent); }
-  .box.on .bt { background: var(--accent); color: #fff; border-bottom-color: var(--accent); }
-  .orgnote { margin-top: auto; font-size: .74rem; line-height: 1.6; color: var(--ink-faint); }
-  .orgarrow { display: flex; align-items: center; justify-content: center; color: var(--rule); font-size: 1.5rem; }
+  .rowlabel {
+    display: flex; align-items: center;
+    font-size: .74rem; letter-spacing: .06em; font-weight: 700; color: var(--ink-faint);
+  }
+  .obox { border: 1px solid var(--rule); background: var(--paper); display: flex; flex-direction: column; }
+  .obox.span2 { grid-column: span 2; }
+  .obox .ot {
+    font-size: .82rem; font-weight: 700; color: var(--ink); text-align: center;
+    padding: .42rem .6rem; border-bottom: 1px solid var(--rule-soft);
+  }
+  .obox .ob { padding: .42rem .65rem; display: flex; flex-direction: column; gap: .14rem; }
+  .obox .ob span { font-size: .74rem; line-height: 1.65; color: var(--ink-soft); }
+  .obox.on { border-color: var(--accent); }
+  .obox.on .ot { background: var(--accent); color: #fff; border-bottom-color: var(--accent); }
+  .cut { color: var(--accent) !important; font-weight: 700; }
 
-  .trialwrap { display: flex; flex-direction: column; align-items: center; margin-top: .2rem; }
-  .dashline { width: 0; height: 1.5rem; border-left: 1px dashed var(--accent); }
-  .trial { border: 1px dashed var(--accent); background: var(--accent-bg); width: 100%; }
-  .trial .tt {
-    font-size: .84rem; font-weight: 700; color: var(--accent);
-    padding: .5rem .75rem; border-bottom: 1px dashed var(--accent);
-    display: flex; justify-content: space-between; gap: .8rem; flex-wrap: wrap; align-items: baseline;
-  }
-  .trial .tt .tag { font-size: .68rem; letter-spacing: .12em; font-weight: 700; }
-  .trial .tb { padding: .55rem .75rem; display: flex; flex-direction: column; gap: .3rem; }
-  .trial .tb span { font-size: .76rem; line-height: 1.7; color: var(--ink-soft); }
-  .trial .tb .proc { color: var(--ink); }
-
-  .fineprint {
-    display: flex; flex-direction: column; gap: .5rem;
+  .orgnote {
     font-size: .74rem; line-height: 1.85; color: var(--ink-faint);
-    border-top: 1px solid var(--rule-soft); padding-top: .9rem; max-width: 64em;
+    border-top: 1px solid var(--rule-soft); padding-top: .8rem; max-width: 64em;
   }
-  .fineprint p { max-width: none; }
 
   @media (max-width: 780px) {
-    .orgrow { grid-template-columns: 1fr; gap: .9rem; }
-    .orgcol { padding: 0; }
-    .orgarrow { transform: rotate(90deg); }
+    .orgmatrix { grid-template-columns: 1fr 1fr; }
+    .rowlabel { grid-column: span 2; }
+    .axis:first-of-type { grid-column: 1; }
   }
   @media print {
-    .orgmap { break-inside: avoid; padding: .8rem .7rem; }
-    .box .bm span, .trial .tb span { font-size: 8.5pt; }
+    .orgmatrix { break-inside: avoid; padding: .8rem .7rem; }
+    .obox .ob span { font-size: 8.5pt; }
   }
 </style>
 
   <section>
     <h2>1. 体制</h2>
-    <p class="lead">ポップアップと常設を、業務の性質で分けた形です。</p>
-    <div class="orgmap">
-      <div class="orgrow">
+    <p class="lead">ポップアップ事業と常設事業で、担当を分けます。</p>
+    <div class="orgmatrix">
 
-        <div class="orgcol">
-          <div class="steplabel">STEP 1</div>
-          <div class="steptitle">現状</div>
-          <div class="boxes">
-            <div class="box">
-              <div class="bt">ポップアップ ＋ 常設</div>
-              <div class="bm">
-                <span>担当：実務担当者1名</span>
-                <span>処理：伝票処理・按分・振替・問い合わせ対応</span>
-              </div>
-            </div>
-          </div>
-          <div class="orgnote">1名がすべてを受けるため、常設の増加分がそのまま上乗せされる。</div>
-        </div>
+      <div></div>
+      <div class="axis">ポップアップ事業</div>
+      <div class="axis">常設事業</div>
 
-        <div class="orgarrow">→</div>
-
-        <div class="orgcol">
-          <div class="steplabel">STEP 2</div>
-          <div class="steptitle">ポップアップと常設を分けた形</div>
-          <div class="boxes split">
-            <div class="box">
-              <div class="bt">ポップアップ</div>
-              <div class="bm">
-                <span>担当：実務担当者1名</span>
-                <span>処理：既存フローを維持</span>
-              </div>
-            </div>
-            <div class="box on">
-              <div class="bt">常設</div>
-              <div class="bm">
-                <span>担当：実務担当者1名</span>
-                <span>処理：発注段階で区分を確定</span>
-              </div>
-            </div>
-          </div>
-          <div class="orgnote">実務を担える人員が1名から2名になり、依頼先は事業部から見てどちらも1人のまま。</div>
-        </div>
-
-      </div>
-
-      <div class="trialwrap">
-        <div class="dashline"></div>
-        <div class="trial">
-          <div class="tt">
-            <span>常設コナン（コナンダイナー案件）</span>
-            <span class="tag">まずはこの案件のみ</span>
-          </div>
-          <div class="tb">
-            <span>担当：これまでとは別に1名を配置</span>
-            <span class="proc">処理：依頼受付 → 発注段階で在庫／非在庫・按分を確定 → 仕訳・支払データ生成 → 会計事務所・経理へ連携 → 試算表の提出まで通しで対応</span>
-            <span>対象外：ほかの案件はすべて現行フローのまま。案件の途中で担当が入れ替わることはない</span>
-          </div>
+      <div class="rowlabel">現在</div>
+      <div class="obox span2">
+        <div class="ot">実務担当者 1名（両方を兼務）</div>
+        <div class="ob">
+          <span>処理：伝票処理・按分・振替・問い合わせ対応を、両事業ぶんまとめて対応</span>
         </div>
       </div>
-    </div>
 
-    <div class="fineprint">
-      <p>まずお願いしたいのは、常設コナン（コナンダイナー案件）だけを対象に、これまでとは別の担当を置いて処理してみることです。発注の段階で在庫／非在庫・按分の区分を確定させる進め方が実際に機能するかどうかを、日々の処理と月次の締めの両方で確認させてください。いま動いているほかの案件には手を触れず、現行フローのまま完了していただきます。</p>
-      <p>この限定した範囲で、処理にかかる時間が実際に短くなること、締めた時点の数字がそのまま確定値になること──この2点が確認できた場合に、上図 STEP 2 の形へ段階的に広げていく想定です。確認できなければ、STEP 1 の形に戻します。</p>
-      <p>はじめから体制を変えていただくお願いではありません。範囲を区切って効果を確かめ、そのうえで広げるかどうかを改めてご相談させていただく、という進め方です。</p>
+      <div class="rowlabel">これから</div>
+      <div class="obox">
+        <div class="ot">実務担当者 1名</div>
+        <div class="ob">
+          <span>処理：既存フローを維持</span>
+          <span class="cut">常設ぶんの伝票処理・按分・振替・問い合わせ対応がなくなる</span>
+        </div>
+      </div>
+      <div class="obox on">
+        <div class="ot">実務担当者 1名</div>
+        <div class="ob">
+          <span>処理：発注段階で区分を確定し、試算表まで対応</span>
+          <span>締め後の按分・振替は発生しない</span>
+        </div>
+      </div>
+
     </div>
+    <p class="orgnote">常設コナン（コナンダイナー案件）から、この形で進めます。ほかの案件はこれまでどおりのフローで対応します。</p>
   </section>
 
   <section>
