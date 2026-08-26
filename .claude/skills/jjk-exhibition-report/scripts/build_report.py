@@ -1184,8 +1184,9 @@ bal = [('残在庫想定（台帳 %s／総計）' % STOCK_STAGE, sum(INV[str(j)]
                   for k, v in HELD.items())
          if HELD else '日報に載っていない持出がある場合のみここで控除する。現在なし')),
        ('［参考］会場での持出・不良・ｻﾝﾌﾟﾙ', _heldsrc_tot, INT,
-        '日報の「販売可能数＝納品数−持出・不良・ｻﾝﾌﾟﾙ」で既に控除済み。'
-        '二重に引かないため供給可能在庫の計算には入れていない。内訳：'
+        '不良交換などで消費済みの数量。日報の「販売可能数＝納品数−持出・不良・ｻﾝﾌﾟﾙ」の時点で'
+        '既に除かれているので、上の供給可能在庫にも含まれていない（この行は記録用で、'
+        '合計には足していない）。内訳：'
         + '／'.join('%s %s個' % (v, f'{_heldsrc_by[v]:,}') for v in VS if _heldsrc_by[v])),
        ('%sへ納品（初回＋転送＋追納）' % CUR, '=%s!%s%d' % (S1, gcl(C_AV), tot), INT,
         '%s（%s）を含む' % (RESUPPLY_NOTE, RESUPPLY_HOW)),
@@ -2009,8 +2010,8 @@ for i, (jan, nm) in enumerate(T):
         nts.append('★%s（%s会場）。供給可能在庫から%s個を除外している'
                    % (HELD[jan]['reason'], HELD[jan]['at'], f"{HELD[jan]['qty']:,}"))
     if _heldsrc[jan]:
-        nts.append('会場で持出・不良・ｻﾝﾌﾟﾙ %s個（%s）。'
-                   '日報の販売可能数で控除済みのため供給可能在庫では二重に引いていない'
+        nts.append('会場で持出・不良・ｻﾝﾌﾟﾙ %s個（%s）が消費済み。'
+                   '日報の販売可能数の時点で既に除かれており、供給可能在庫にも含まれていない'
                    % (f'{_heldsrc[jan]:,}',
                       '／'.join('%s%d個' % (v, D[v]['rows'][str(jan)].get('held', 0))
                                for v in VS if D[v]['rows'][str(jan)].get('held', 0))))
@@ -2885,7 +2886,8 @@ for i, (jan, nm) in enumerate(T):
     if jan in HELD:
         _nt.append('★予備持出 %s個を引当可能在庫から除外済み' % f"{HELD[jan]['qty']:,}")
     if _heldsrc[jan]:
-        _nt.append('会場で持出・不良 %s個（日報の販売可能数で控除済）' % f'{_heldsrc[jan]:,}')
+        _nt.append('会場で持出・不良 %s個が消費済み（引当可能在庫には含まれていない）'
+                   % f'{_heldsrc[jan]:,}')
     if PROD[jan] is None:
         _nt.append('再生産不可。現有在庫の範囲で配分する')
     ws.cell(rr, NCD, ' ／ '.join(_nt))
