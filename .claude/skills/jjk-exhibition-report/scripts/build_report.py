@@ -61,6 +61,8 @@ RESUPPLY_TOTAL = sum(x[2] for x in RESUPPLY_DETAIL) if RESUPPLY_IN_SRC else sum(
 RESUPPLY_HOW = ('日報の販売可能数に反映済み' if RESUPPLY_IN_SRC else '本レポートで販売可能数に加算')
 DECIDED = {int(k): v for k, v in getattr(CFG, 'DECIDED_ORDER', {}).items()}
 SHELF = {int(k): v for k, v in getattr(CFG, 'SHELF_LIFE', {}).items()}
+# 販売できない持ち出し在庫（不良交換用の予備など）。供給可能在庫から除外する
+HELD = {int(k): v for k, v in getattr(CFG, 'WITHHELD', {}).items()}
 
 # 開催中会場への追納を販売可能数に加算する（倉庫→会場の移動なので全社在庫は不変）。
 for _j, _q in RESUPPLY.items():
@@ -304,7 +306,9 @@ _mix2 = {j: 0.5 * _mixo2[j] + 0.5 * (PRED[j] / TS) for j in TJ}
 #   開催中会場への納品は倉庫残と直前会場の会期末残から出ているので、この式で相殺される。
 _prest_tot = sum(PREST[j] for j in TJ)
 _psold_tot = sum(PSOLD[j] for j in TJ)
-_sup_of = {j: _wh_of(j) + PREST[j] - PRED[j] for j in TJ}
+_held = {j: HELD.get(j, {}).get('qty', 0) for j in TJ}
+_held_tot = sum(_held.values())
+_sup_of = {j: _wh_of(j) + PREST[j] - _held[j] - PRED[j] for j in TJ}
 _supply = sum(_sup_of.values())
 _gap2 = {j: _mix2[j] * _futq - _sup_of[j] for j in TJ}
 _vneed = {fn: round(TKA * ratio * _lsha / _ru) for fn, per, dd, ratio, note in FUTURE}
@@ -544,6 +548,8 @@ blocks = [
          '%s以降の東京対比比率 4シナリオ（ユーザー指定／企画概要書／%s実績連動／手動）の比較' % (FUT1, CUR)),
         ('⑪会場別引当・発注期限', '会場順の在庫引当、欠品発生会場の特定、生産日数から逆算した最終発注期限'),
         ('⑫計算ロジック解説', '各シート・各列がどの数式で計算されているかを、No.1商品の実数を当てはめた実例つきで一覧化'),
+        ('⑬会場別 納品予測', '%s以降 各会場へ実際に何個出せるか（必要数 vs 在庫制約を織り込んだ納品予測数）'
+                             % FUT1),
         ('運営欠品報告の反映先', '④追加発注判定シートの「運営 欠品報告」「モデル×現場 突合」列、'
                                  'および⑧シートの運営欠品報告列・備考欄'),
     ]),
@@ -1169,18 +1175,21 @@ bal = [('残在庫想定（台帳 %s／総計）' % STOCK_STAGE, sum(INV[str(j)]
        ('%s 会期%d日 実績販売数' % (PREV, RUN[PREV]), _psold_tot, INT, '会期終了済みの確定値'),
        ('%s 会期末 残（実績）' % PREV, 'PLACEHOLDER_RESUP', INT,
         '販売可能数 − 実績販売数。%s会場へ転送された分と倉庫へ戻った分の合計' % CUR),
+       ('　うち販売不可（予備持出）', _held_tot, INT,
+        '／'.join('%s %s個（%s）' % (dict(T)[k], f"{v['qty']:,}", v['reason'])
+                 for k, v in HELD.items()) or 'なし'),
        ('%sへ納品（初回＋転送＋追納）' % CUR, '=%s!%s%d' % (S1, gcl(C_AV), tot), INT,
         '%s（%s）を含む' % (RESUPPLY_NOTE, RESUPPLY_HOW)),
        ('%s 会期%d日 予測販売数' % (CUR, RUNC), '=%s!%s%d' % (S1, gcl(C_PRED), tot), INT, ''),
-       ('%s以降 供給可能在庫 合計' % FUT1, '=B%d+B%d-B%d' % (r + 2, r + 4, r + 6), INT,
-        '＝倉庫残 ＋ %s会期末残 − %s会期予測販売。%sへの納品はこの2つから出ているので相殺される'
-        % (PREV, CUR, CUR)),
+       ('%s以降 供給可能在庫 合計' % FUT1, '=B%d+B%d-B%d-B%d' % (r + 2, r + 4, r + 5, r + 7), INT,
+        '＝倉庫残 ＋ %s会期末残 − 販売不可 − %s会期予測販売。'
+        '%sへの納品はこの2つから出ているので相殺される' % (PREV, CUR, CUR)),
        ('確定済み追加発注（入荷予定）', sum(v['qty'] for v in DECIDED.values()), INT,
         '発注判断済みの分。'
         + '／'.join('%s %s%s（%s入荷）' % (dict(T)[j], f"{v['qty']:,}", v['unit'], v['arrive_at'])
                    for j, v in DECIDED.items())),
        ('%s以降 %d会場 必要数' % (FUT1, FUTN), '=G%d' % ftot, INT, ''),
-       ('全体過不足（供給可能＋確定発注−必要）', '=B%d+B%d-B%d' % (r + 7, r + 8, r + 9), '+#,##0;-#,##0;0',
+       ('全体過不足（供給可能＋確定発注−必要）', '=B%d+B%d-B%d' % (r + 8, r + 9, r + 10), '+#,##0;-#,##0;0',
         'プラス＝全体では在庫充足。ただし商品別には過不足が生じる'),
        ('追加生産 必要数（商品別不足の合計）', 'PLACEHOLDER_ADDPROD', INT,
         '下表の商品別「追加生産必要数」の合計。全体余剰でも品目別には不足が出る')]
@@ -1219,6 +1228,7 @@ PH += [('%s以降\n' % FUT1 + '必要数 計', 12, JUDG),
        ('★ロジ在庫\n(%s 実棚)' % WMS_DATE, 12, PatternFill('solid', fgColor='C55A11')),
        ('差引\n倉庫残', 10, PatternFill('solid', fgColor='375623')),
        ('%s会期末\n残（実績）' % PREV, 11, PatternFill('solid', fgColor=VF[PREV])),
+       ('販売不可\n(予備持出)', 10, ALERT),
        ('%sへ納品\n(初回+転送+追納)' % CUR, 12, PatternFill('solid', fgColor=VF[CUR])),
        ('%s 会期%d日\n予測販売' % (CUR, RUNC), 12, PatternFill('solid', fgColor=VF[CUR])),
        ('%s以降\n供給可能計' % FUT1, 12, JUDG),
@@ -1257,22 +1267,25 @@ for i, (jan, nm) in enumerate(T):
             % (gcl(c_need + 3), rr, gcl(c_need + 1), rr, gcl(c_need + 2), rr,
                gcl(c_need + 3), rr)).number_format = INT
     ws.cell(rr, c_need + 5, PREST[jan]).number_format = INT
-    ws.cell(rr, c_need + 6, '=%s!%s%d' % (S1, gcl(C_AV), r0 + i)).number_format = INT
-    ws.cell(rr, c_need + 7, '=%s!%s%d' % (S1, gcl(C_PRED), r0 + i)).number_format = INT
-    # 供給可能 ＝ 倉庫残 ＋ 直前会場の会期末残 − 開催中会場の会期予測販売
+    ws.cell(rr, c_need + 6, _held[jan]).number_format = INT
+    ws.cell(rr, c_need + 7, '=%s!%s%d' % (S1, gcl(C_AV), r0 + i)).number_format = INT
+    ws.cell(rr, c_need + 8, '=%s!%s%d' % (S1, gcl(C_PRED), r0 + i)).number_format = INT
+    # 供給可能 ＝ 倉庫残 ＋ 直前会場の会期末残 − 販売不可分 − 開催中会場の会期予測販売
     #（開催中会場への納品はこの2つから出ているので、予測を丸ごと引けば相殺される）
-    ws.cell(rr, c_need + 8, '=%s%d+%s%d-%s%d'
-            % (gcl(c_need + 4), rr, gcl(c_need + 5), rr, gcl(c_need + 7), rr)).number_format = INT
-    ws.cell(rr, c_need + 9, DECIDED[jan]['qty'] if jan in DECIDED else 0).number_format = INT
-    ws.cell(rr, c_need + 10, '=%s%d-%s%d-%s%d'
-            % (gcl(c_need), rr, gcl(c_need + 8), rr, gcl(c_need + 9), rr)
+    ws.cell(rr, c_need + 9, '=%s%d+%s%d-%s%d-%s%d'
+            % (gcl(c_need + 4), rr, gcl(c_need + 5), rr, gcl(c_need + 6), rr,
+               gcl(c_need + 8), rr)).number_format = INT
+    ws.cell(rr, c_need + 10, DECIDED[jan]['qty'] if jan in DECIDED else 0).number_format = INT
+    ws.cell(rr, c_need + 11, '=%s%d-%s%d-%s%d'
+            % (gcl(c_need), rr, gcl(c_need + 9), rr, gcl(c_need + 10), rr)
             ).number_format = '+#,##0;-#,##0;0'
-    ws.cell(rr, c_need + 11, '=MAX(0,%s%d)' % (gcl(c_need + 10), rr)).number_format = INT
-    ws.cell(rr, c_need + 12, '=IF(%s%d>0,ROUNDUP(%s%d*(1+%s),0),0)'
-            % (gcl(c_need + 11), rr, gcl(c_need + 11), rr, pr('safe'))).number_format = INT
-NCP = c_need + 12
-C3_WH, C3_PREST, C3_SUP = c_need + 4, c_need + 5, c_need + 8
-C3_DEC, C3_GAP, C3_ADD, C3_ORD = c_need + 9, c_need + 10, c_need + 11, c_need + 12
+    ws.cell(rr, c_need + 12, '=MAX(0,%s%d)' % (gcl(c_need + 11), rr)).number_format = INT
+    ws.cell(rr, c_need + 13, '=IF(%s%d>0,ROUNDUP(%s%d*(1+%s),0),0)'
+            % (gcl(c_need + 12), rr, gcl(c_need + 12), rr, pr('safe'))).number_format = INT
+NCP = c_need + 13
+C3_WH, C3_PREST, C3_HELD, C3_SUP = c_need + 4, c_need + 5, c_need + 6, c_need + 9
+C3_DEC, C3_GAP, C3_ADD, C3_ORD = c_need + 10, c_need + 11, c_need + 12, c_need + 13
+C3_NEED, C3_V0 = c_need, 9         # 必要数計の列 / 会場別必要数の先頭列
 ws.cell(ptot, 3, '合計（LEGS 42SKU）')
 for c in [4, 6] + list(range(9, NCP + 1)):
     if c in (5, 7, 8):
@@ -1898,6 +1911,7 @@ IH += [('★残在庫想定\n%s' % STOCK_STAGE.replace('(SET)', ''), 13,
       ('残在庫\n金額(税込)', 13, PatternFill('solid', fgColor='375623')),
       ('%sへ納品' % WMS_AFTER, 11, PatternFill('solid', fgColor=VF[WMS_AFTER])),
       ('%s 会期末\n残（実績）' % PREV, 11, PatternFill('solid', fgColor=VF[PREV])),
+      ('販売不可\n(予備持出)', 10, ALERT),
       ('%sへ納品\n(初回+転送+追納)' % CUR, 12, PatternFill('solid', fgColor=VF[CUR])),
       ('%s 会期%d日\n予測販売' % (CUR, RUNC), 12, PatternFill('solid', fgColor=VF[CUR])),
       ('差引 倉庫残\n(即出荷可)', 12, BLUE),
@@ -1931,35 +1945,36 @@ for i, (jan, nm) in enumerate(T):
     ws.cell(rr, 10, '=H%d*D%d' % (rr, rr)).number_format = YEN
     ws.cell(rr, 11, R(WMS_AFTER, jan)['avail']).number_format = INT
     ws.cell(rr, 12, PREST[jan]).number_format = INT
-    ws.cell(rr, 13, '=%s!%s%d' % (S1, gcl(C_AV), r0 + i)).number_format = INT
-    ws.cell(rr, 14, '=%s!%s%d' % (S1, gcl(C_PRED), r0 + i)).number_format = INT
+    ws.cell(rr, 13, _held[jan]).number_format = INT
+    ws.cell(rr, 14, '=%s!%s%d' % (S1, gcl(C_AV), r0 + i)).number_format = INT
+    ws.cell(rr, 15, '=%s!%s%d' % (S1, gcl(C_PRED), r0 + i)).number_format = INT
     # ロジの実棚があればそれを倉庫残とし、無い品だけ 台帳残在庫 −直前会場納品 で代用する
-    ws.cell(rr, 15, '=IF(I%d="",H%d-K%d,I%d)' % (rr, rr, rr, rr)).number_format = INT
-    # 供給可能 ＝ 倉庫残 ＋ 直前会場の会期末残 − 開催中会場の会期予測販売
-    ws.cell(rr, 16, '=O%d+L%d-N%d' % (rr, rr, rr)).number_format = INT
-    ws.cell(rr, 17, '=%s!%s%d' % (S3, gcl(c_need), pr0 + i)).number_format = INT
+    ws.cell(rr, 16, '=IF(I%d="",H%d-K%d,I%d)' % (rr, rr, rr, rr)).number_format = INT
+    # 供給可能 ＝ 倉庫残 ＋ 直前会場の会期末残 − 販売不可 − 開催中会場の会期予測販売
+    ws.cell(rr, 17, '=P%d+L%d-M%d-O%d' % (rr, rr, rr, rr)).number_format = INT
+    ws.cell(rr, 18, '=%s!%s%d' % (S3, gcl(c_need), pr0 + i)).number_format = INT
     _dq = DECIDED[jan]['qty'] if jan in DECIDED else 0
-    ws.cell(rr, 18, '=P%d-Q%d%s' % (rr, rr, ('+%d' % _dq) if _dq else '')
+    ws.cell(rr, 19, '=Q%d-R%d%s' % (rr, rr, ('+%d' % _dq) if _dq else '')
             ).number_format = '+#,##0;-#,##0;0'
-    ws.cell(rr, 19, '=MAX(0,-R%d)' % rr).number_format = INT
-    ws.cell(rr, 20, '=IF(S%d>0,ROUNDUP(S%d*(1+%s),0),0)' % (rr, rr, pr('safe'))).number_format = INT
+    ws.cell(rr, 20, '=MAX(0,-S%d)' % rr).number_format = INT
+    ws.cell(rr, 21, '=IF(T%d>0,ROUNDUP(T%d*(1+%s),0),0)' % (rr, rr, pr('safe'))).number_format = INT
     _fn8 = _venue_of(jan)
-    ws.cell(rr, 21, _fn8 if _fn8 else '—')
+    ws.cell(rr, 22, _fn8 if _fn8 else '—')
     _dl8 = _dl_formula(jan)
-    ws.cell(rr, 22, _dl8 if _dl8 else '')
+    ws.cell(rr, 23, _dl8 if _dl8 else '')
     if _dl8.startswith('='):
-        ws.cell(rr, 22).number_format = 'yyyy/m/d'
+        ws.cell(rr, 23).number_format = 'yyyy/m/d'
     if jan in DECIDED:
-        ws.cell(rr, 23, '◎発注確定済')
+        ws.cell(rr, 24, '◎発注確定済')
     else:
-        ws.cell(rr, 23, '=IF(U%d="—","—",IF(V%d="再生産不可","×再生産不可",'
-                '_xlfn.IFS(V%d-%s<0,"★期限超過",V%d-%s<=30,"★至急(30日以内)",'
-                'V%d-%s<=90,"要着手(90日以内)",TRUE(),"余裕あり")))'
+        ws.cell(rr, 24, '=IF(V%d="—","—",IF(W%d="再生産不可","×再生産不可",'
+                '_xlfn.IFS(W%d-%s<0,"★期限超過",W%d-%s<=30,"★至急(30日以内)",'
+                'W%d-%s<=90,"要着手(90日以内)",TRUE(),"余裕あり")))'
                 % (rr, rr, rr, pr('base'), rr, pr('base'), rr, pr('base')))
-    ws.cell(rr, 24, '=IF(S%d>0,"★欠品：追加生産が必要",IF(R%d>=Q%d*2,"大幅余剰","在庫で充足"))'
+    ws.cell(rr, 25, '=IF(T%d>0,"★欠品：追加生産が必要",IF(S%d>=R%d*2,"大幅余剰","在庫で充足"))'
             % (rr, rr, rr))
     _sh = SHORTAGE.get(str(jan), '')
-    ws.cell(rr, 25, '欠品報告あり' if _sh else '')
+    ws.cell(rr, 26, '欠品報告あり' if _sh else '')
     _wh = _wh_of(jan)
     nts = []
     if jan in DECIDED:
@@ -1981,35 +1996,38 @@ for i, (jan, nm) in enumerate(T):
         nts.append('★ロジ実棚%s個と台帳計算%s個が乖離。ロジ側を採用（%s）'
                    % (f"{_w8['stock']:,}", f"{iv['real'] - R(WMS_AFTER, jan)['avail']:,}",
                       'SET/バラの単位差の可能性' if iv['set_size'] > 1 else '要確認'))
-    ws.cell(rr, 26, ' ／ '.join(nts))
+    if jan in HELD:
+        nts.append('★%s（%s会場）。供給可能在庫から%s個を除外している'
+                   % (HELD[jan]['reason'], HELD[jan]['at'], f"{HELD[jan]['qty']:,}"))
+    ws.cell(rr, 27, ' ／ '.join(nts))
 ws.cell(itot, 3, '合計（LEGS 42SKU）')
-for c in list(range(5, 21)):
+for c in list(range(5, 22)):
     L = gcl(c)
     ws.cell(itot, c, '=SUM(%s%d:%s%d)' % (L, i0, L, itot - 1)).number_format = YEN if c == 10 else INT
-ws.cell(itot, 23, '=COUNTIF(W%d:W%d,"★期限超過")&"品目が期限超過"' % (i0, itot - 1))
-ws.cell(itot, 24, '=COUNTIF(X%d:X%d,"★欠品：追加生産が必要")&"品目が欠品"' % (i0, itot - 1))
-ws.cell(itot, 25, '=COUNTIF(Y%d:Y%d,"<>")&"品目"' % (i0, itot - 1))
-body(ws, i0, itot, 26)
+ws.cell(itot, 24, '=COUNTIF(X%d:X%d,"★期限超過")&"品目が期限超過"' % (i0, itot - 1))
+ws.cell(itot, 25, '=COUNTIF(Y%d:Y%d,"★欠品：追加生産が必要")&"品目が欠品"' % (i0, itot - 1))
+ws.cell(itot, 26, '=COUNTIF(Z%d:Z%d,"<>")&"品目"' % (i0, itot - 1))
+body(ws, i0, itot, 27)
 for rr in range(i0, itot):
-    for _c in (21, 23, 24, 26):
+    for _c in (22, 24, 25, 27):
         ws.cell(rr, _c).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
-totrow(ws, itot, 26)
-hdrfmt(ws, ihr, ihr, 26)
-ws.conditional_formatting.add('X%d:X%d' % (i0, itot - 1),
-                              FormulaRule(formula=['LEFT($X%d,1)="★"' % i0], fill=ALERT,
-                                          font=Font(name=FONT, size=9, bold=True, color='9C0006')))
-ws.conditional_formatting.add('X%d:X%d' % (i0, itot - 1),
-                              FormulaRule(formula=['$X%d="在庫で充足"' % i0], fill=OKF))
+totrow(ws, itot, 27)
+hdrfmt(ws, ihr, ihr, 27)
 ws.conditional_formatting.add('Y%d:Y%d' % (i0, itot - 1),
-                              FormulaRule(formula=['$Y%d<>""' % i0], fill=WARN))
-ws.conditional_formatting.add('U%d:U%d' % (i0, itot - 1),
-                              FormulaRule(formula=['$U%d<>"—"' % i0], fill=ALERT))
-ws.conditional_formatting.add('W%d:W%d' % (i0, itot - 1),
-                              FormulaRule(formula=['LEFT($W%d,1)="★"' % i0], fill=ALERT))
-ws.conditional_formatting.add('W%d:W%d' % (i0, itot - 1),
-                              FormulaRule(formula=['$W%d="要着手(90日以内)"' % i0], fill=WARN))
-ws.conditional_formatting.add('S%d:S%d' % (i0, itot - 1),
-                              FormulaRule(formula=['$S%d>0' % i0], fill=ALERT))
+                              FormulaRule(formula=['LEFT($Y%d,1)="★"' % i0], fill=ALERT,
+                                          font=Font(name=FONT, size=9, bold=True, color='9C0006')))
+ws.conditional_formatting.add('Y%d:Y%d' % (i0, itot - 1),
+                              FormulaRule(formula=['$Y%d="在庫で充足"' % i0], fill=OKF))
+ws.conditional_formatting.add('Z%d:Z%d' % (i0, itot - 1),
+                              FormulaRule(formula=['$Z%d<>""' % i0], fill=WARN))
+ws.conditional_formatting.add('V%d:V%d' % (i0, itot - 1),
+                              FormulaRule(formula=['$V%d<>"—"' % i0], fill=ALERT))
+ws.conditional_formatting.add('X%d:X%d' % (i0, itot - 1),
+                              FormulaRule(formula=['LEFT($X%d,1)="★"' % i0], fill=ALERT))
+ws.conditional_formatting.add('X%d:X%d' % (i0, itot - 1),
+                              FormulaRule(formula=['$X%d="要着手(90日以内)"' % i0], fill=WARN))
+ws.conditional_formatting.add('T%d:T%d' % (i0, itot - 1),
+                              FormulaRule(formula=['$T%d>0' % i0], fill=ALERT))
 
 # ===========================================================================
 # 10. ⑨過去4会場 予測vs実績・構成比修正
@@ -2708,6 +2726,192 @@ for a, b in [
     r += 1
 
 # ===========================================================================
+# 13. ⑬会場別 納品予測
+#   会場順に在庫を引き当てて、各会場へ「実際に何個出せるか」を出す。
+#   必要数は需要、納品予測数は供給の上限を踏まえた出荷計画。
+# ===========================================================================
+ws = wb.create_sheet('⑬会場別 納品予測')
+ws.sheet_view.showGridLines = False
+ws['A1'] = '⑬ %s以降 会場別 納品予測数（商品別の出荷計画）' % FUT1
+ws['A1'].font = TITLE
+ws['A2'] = ('納品予測数 ＝ MIN( その会場の必要数, その時点で引き当てられる在庫 )。'
+            '会場順に在庫を減らしていくので、前の会場で使った分は後の会場には回らない。')
+ws['A2'].font = NOTE
+ws['A3'] = ('必要数は「需要」、納品予測数は「供給の上限を踏まえて実際に出せる数」。'
+            '両者の差が不足数＝その会場で欠品する数量。確定発注の入荷はその会場の期首在庫に加算している。')
+ws['A3'].font = NOTE
+ws['A4'] = ('※在庫は42SKU一括ではなく商品別に引き当てている。'
+            '全体では余っていても、商品によっては前半の会場で在庫を使い切って後半で欠品する。')
+ws['A4'].font = NOTE
+
+# ---- Python側で同じ引当を再現（サマリー表の値に使う） ----------------------
+_ship = {}          # (jan, 会場) → 納品予測数
+_shortv = {}        # (jan, 会場) → 不足数
+for jan in TJ:
+    rem = _sup_of[jan]
+    for fn, per, dd, ratio, note in FUTURE:
+        if jan in DECIDED and DECIDED[jan]['arrive_at'] == fn:
+            rem += DECIDED[jan]['qty']
+        need = round(_mix2[jan] * _vneed[fn])
+        give = max(0, min(need, rem))
+        _ship[(jan, fn)] = give
+        _shortv[(jan, fn)] = need - give
+        rem -= give
+
+# ---- 会場別サマリー -------------------------------------------------------
+r = 6
+ws.cell(r, 1, '■ 会場別 納品予測サマリー（LEGS 42SKU 合計）').font = SEC
+r += 1
+SH = ['会場', '会期', '日数', '東京対比', '必要数\n(需要)', '納品予測数\n(出荷計画)',
+      '不足数\n(欠品見込)', '充足率', '納品金額\n(税込小売換算)', '確定発注の入荷', '備考']
+SW = [24, 22, 7, 10, 12, 13, 12, 9, 15, 16, 40]
+vhr13 = r
+for i, (h, w) in enumerate(zip(SH, SW), 1):
+    c = ws.cell(vhr13, i, h)
+    c.fill = NAVY
+    c.font = H2
+    ws.column_dimensions[gcl(i)].width = w
+ws.row_dimensions[vhr13].height = 34
+vs0 = vhr13 + 1
+for k, (fn, per, dd, ratio, note) in enumerate(FUTURE):
+    rr = vs0 + k
+    _nd = sum(round(_mix2[j] * _vneed[fn]) for j in TJ)
+    _sp = sum(_ship[(j, fn)] for j in TJ)
+    _amt = sum(_ship[(j, fn)] * R(CUR, j)['price'] for j in TJ)
+    _in = [dict(T)[j] for j in TJ if j in DECIDED and DECIDED[j]['arrive_at'] == fn]
+    ws.cell(rr, 1, fn).font = BD
+    ws.cell(rr, 2, per)
+    ws.cell(rr, 3, dd).number_format = INT
+    ws.cell(rr, 4, ratio).number_format = PCT
+    ws.cell(rr, 5, _nd).number_format = INT
+    ws.cell(rr, 6, _sp).number_format = INT
+    ws.cell(rr, 7, _nd - _sp).number_format = INT
+    ws.cell(rr, 8, '=IFERROR(F%d/E%d,0)' % (rr, rr)).number_format = PCT
+    ws.cell(rr, 9, _amt).number_format = YEN
+    ws.cell(rr, 10, '／'.join('%s %s%s' % (nm, f"{DECIDED[j]['qty']:,}", DECIDED[j]['unit'])
+                              for j, nm in zip([j for j in TJ if j in DECIDED
+                                                and DECIDED[j]['arrive_at'] == fn], _in)) or '—')
+    _ns = sorted([(dict(T)[j], _shortv[(j, fn)]) for j in TJ if _shortv[(j, fn)] > 0],
+                 key=lambda x: -x[1])
+    ws.cell(rr, 11, ('欠品 %d品目：%s' % (len(_ns), '／'.join('%s %s個' % (a, f'{b:,}') for a, b in _ns[:4]))
+                     + ('　ほか' if len(_ns) > 4 else '')) if _ns else '全品 必要数を満たす')
+vtot13 = vs0 + len(FUTURE)
+ws.cell(vtot13, 1, '%s以降 %d会場 合計' % (FUT1, FUTN))
+for c in (5, 6, 7, 9):
+    L = gcl(c)
+    ws.cell(vtot13, c, '=SUM(%s%d:%s%d)' % (L, vs0, L, vtot13 - 1)).number_format = YEN if c == 9 else INT
+ws.cell(vtot13, 8, '=IFERROR(F%d/E%d,0)' % (vtot13, vtot13)).number_format = PCT
+body(ws, vs0, vtot13, 11, namecol=1)
+for k in range(len(FUTURE) + 1):
+    ws.cell(vs0 + k, 1).font = BD
+    ws.cell(vs0 + k, 1).alignment = LFT
+    ws.cell(vs0 + k, 2).alignment = LFT
+    ws.cell(vs0 + k, 10).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+    ws.cell(vs0 + k, 11).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+totrow(ws, vtot13, 11, namecol=1)
+hdrfmt(ws, vhr13, vhr13, 11)
+ws.conditional_formatting.add('G%d:G%d' % (vs0, vtot13 - 1),
+                              FormulaRule(formula=['$G%d>0' % vs0], fill=ALERT))
+
+# ---- 商品別 × 会場別 ------------------------------------------------------
+r = vtot13 + 2
+ws.cell(r, 1, '■ 商品別 会場別 納品予測数').font = SEC
+r += 1
+DH = [('No.', 5, NAVY), ('JAN', 15, NAVY), ('商品名', 44, NAVY), ('税込単価', 9, NAVY),
+      ('%s以降\n引当可能在庫' % FUT1, 13, PatternFill('solid', fgColor='375623'))]
+VCOL = {}
+for fn, per, dd, ratio, note in FUTURE:
+    sn = fn.split(' ')[0]
+    DH += [('%s\n期首在庫' % sn, 11, FUT), ('%s\n必要数' % sn, 10, FUT),
+           ('%s\n★納品予測数' % sn, 12, PatternFill('solid', fgColor='C55A11')),
+           ('%s\n不足' % sn, 9, ALERT), ('%s\n期末在庫' % sn, 11, FUT)]
+    VCOL[fn] = len(DH) - 2          # 納品予測数の列（不足はこの+1）
+DH += [('納品予測数\n合計', 12, JUDG), ('不足数\n合計', 11, JUDG),
+       ('納品金額 合計\n(税込小売換算)', 15, JUDG), ('備考', 46, GREY)]
+dhr13 = r
+for i, (h, w, f) in enumerate(DH, 1):
+    c = ws.cell(dhr13, i, h)
+    c.fill = f
+    c.font = H2 if f is not GREY else Font(name=FONT, size=9, bold=True, color='333333')
+    ws.column_dimensions[gcl(i)].width = w
+ws.row_dimensions[dhr13].height = 40
+dd0 = dhr13 + 1
+ddtot = dd0 + len(T)
+NCD = len(DH)
+for i, (jan, nm) in enumerate(T):
+    rr = dd0 + i
+    ws.cell(rr, 1, i + 1); ws.cell(rr, 2, str(jan)); ws.cell(rr, 3, nm)
+    ws.cell(rr, 4, R(CUR, jan)['price']).number_format = YEN
+    ws.cell(rr, 5, '=%s!%s%d' % (S3, gcl(C3_SUP), pr0 + i)).number_format = INT
+    for k, (fn, per, dd, ratio, note) in enumerate(FUTURE):
+        c0 = 6 + 5 * k                      # 期首在庫
+        _prevc = 'E' if k == 0 else gcl(c0 - 1)     # 前会場の期末在庫
+        _dq = DECIDED[jan]['qty'] if (jan in DECIDED and DECIDED[jan]['arrive_at'] == fn) else 0
+        ws.cell(rr, c0, '=%s%d%s' % (_prevc, rr, ('+%d' % _dq) if _dq else '')).number_format = INT
+        ws.cell(rr, c0 + 1, '=%s!%s%d' % (S3, gcl(C3_V0 + k), pr0 + i)).number_format = INT
+        ws.cell(rr, c0 + 2, '=MAX(0,MIN(%s%d,%s%d))'
+                % (gcl(c0 + 1), rr, gcl(c0), rr)).number_format = INT
+        ws.cell(rr, c0 + 3, '=%s%d-%s%d' % (gcl(c0 + 1), rr, gcl(c0 + 2), rr)).number_format = INT
+        ws.cell(rr, c0 + 4, '=%s%d-%s%d' % (gcl(c0), rr, gcl(c0 + 2), rr)).number_format = INT
+    _c1 = NCD - 3
+    ws.cell(rr, _c1, '=%s' % '+'.join('%s%d' % (gcl(VCOL[f[0]]), rr) for f in FUTURE)).number_format = INT
+    ws.cell(rr, _c1 + 1, '=%s' % '+'.join('%s%d' % (gcl(VCOL[f[0]] + 1), rr) for f in FUTURE)
+            ).number_format = INT
+    ws.cell(rr, _c1 + 2, '=%s%d*D%d' % (gcl(_c1), rr, rr)).number_format = YEN
+    _nt = []
+    if sum(_shortv[(jan, f[0])] for f in FUTURE) > 0:
+        _fs = [f[0].split(' ')[0] for f in FUTURE if _shortv[(jan, f[0])] > 0]
+        _nt.append('★%s で欠品。追加発注しない場合はこの会場から品切れになる' % '・'.join(_fs))
+    if jan in DECIDED:
+        _nt.append('◎%s%s を %s の期首在庫に加算済み'
+                   % (f"{DECIDED[jan]['qty']:,}", DECIDED[jan]['unit'], DECIDED[jan]['arrive_at']))
+    if jan in SHELF:
+        _nt.append('【賞味期限】%s までが販売期限' % SHELF[jan]['sellable_through'])
+    if jan in HELD:
+        _nt.append('★予備持出 %s個を引当可能在庫から除外済み' % f"{HELD[jan]['qty']:,}")
+    if PROD[jan] is None:
+        _nt.append('再生産不可。現有在庫の範囲で配分する')
+    ws.cell(rr, NCD, ' ／ '.join(_nt))
+ws.cell(ddtot, 3, '合計（LEGS 42SKU）')
+for c in [5] + [c for k in range(len(FUTURE)) for c in (6 + 5 * k + 1, 6 + 5 * k + 2, 6 + 5 * k + 3)] \
+        + [NCD - 3, NCD - 2, NCD - 1]:
+    L = gcl(c)
+    ws.cell(ddtot, c, '=SUM(%s%d:%s%d)' % (L, dd0, L, ddtot - 1)
+            ).number_format = YEN if c == NCD - 1 else INT
+body(ws, dd0, ddtot, NCD)
+for rr in range(dd0, ddtot):
+    ws.cell(rr, NCD).alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+totrow(ws, ddtot, NCD)
+hdrfmt(ws, dhr13, dhr13, NCD)
+for f in FUTURE:
+    L = gcl(VCOL[f[0]] + 1)         # 不足列
+    ws.conditional_formatting.add('%s%d:%s%d' % (L, dd0, L, ddtot - 1),
+                                  FormulaRule(formula=['$%s%d>0' % (L, dd0)], fill=ALERT))
+ws.freeze_panes = 'F%d' % dd0
+
+r = ddtot + 2
+ws.cell(r, 1, '■ 読み方と使いかた').font = SEC
+r += 1
+for a, b in [
+    ('必要数と納品予測数の違い',
+     '必要数はその会場で売れると見込む数（需要）。納品予測数は在庫の制約を織り込んだ出荷計画で、'
+     '在庫が足りていれば両者は一致する。'),
+    ('不足が出る会場', '在庫を会場順に引き当てるので、不足は必ず後半の会場から出る。'
+                       '前半の会場に多めに送ると後半の欠品が増える点に注意。'),
+    ('確定発注の扱い', '入荷予定の会場の期首在庫に加算している。'
+                       'それ以前の会場では使えないので、入荷会場より前で欠品する場合は発注時期の前倒しが要る。'),
+    ('納品金額', '税込小売価格 × 納品予測数。会場ごとの物販売上の目安として使う（原価ではない）。'),
+    ('この表で決めること', '各会場への出荷数量と、どの会場から欠品が始まるか。'
+                           '追加発注の要否・期限は⑪シート、商品別の過不足は③シートを参照。'),
+]:
+    ws.cell(r, 1, a).font = BD
+    c = ws.cell(r, 2, b)
+    c.font = NM
+    c.alignment = LFT
+    ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=10)
+    r += 1
+
+# ===========================================================================
 # 13. ⑫計算ロジック解説
 #   列位置・数式は「生成済みのシートから読み取って」書き出す。列を足しても
 #   解説がずれないよう、ここでは列文字も数式も直書きしない。
@@ -3267,6 +3471,38 @@ _row12(SN11, '賞味期限・確定発注のセクション', '売り切り管�
                 for k, v in SHELF.items()) or '対象なし',
        '確定発注の消化率は全会期終了時点の値。会場ごとの累計消化率も並記している')
 
+# ---- ⑬ --------------------------------------------------------------------
+SN13 = _sh12('⑬')
+H13R = _hr12(SN13); D13 = H13R + 1
+_v13 = _rw12(SN13, FUTURE[0][0])
+_sec12('■ %s（%d〜%d行＝会場別サマリー、%d行＝見出し、%d〜%d行＝商品）'
+       % (SN13, _v13, _v13 + FUTN, H13R, D13, D13 + len(T) - 1))
+_row12(SN13, '会場別サマリーの表', '会場別 必要数／納品予測数／不足数',
+       '（下の商品別表の合計。充足率＝納品予測数÷必要数）',
+       '／'.join('%s 必要%s→納品%s' % (f[0].split(' ')[0],
+                                     _f12(sum(round(_mix2[j] * _vneed[f[0]]) for j in TJ)),
+                                     _f12(sum(_ship[(j, f[0])] for j in TJ))) for f in FUTURE),
+       '会場ごとの出荷計画と、どの会場から欠品が始まるかを見る表')
+_row12(SN13, '%s列' % _L(SN13, H13R, '引当可能在庫'), _HD(SN13, H13R, '引当可能在庫'),
+       _FX(SN13, H13R, D13, '引当可能在庫'), '%s個' % _f12(_sp1),
+       '③の供給可能計へのリンク。ここから会場順に引き当てる')
+_row12(SN13, '各会場の「期首在庫」列', '期首在庫',
+       '=前会場の期末在庫（先頭会場は引当可能在庫）＋その会場に入荷する確定発注',
+       '%s個（%s）' % (_f12(_sp1), FUTURE[0][0].split(' ')[0]),
+       '確定発注は入荷会場の期首在庫に加算する。それ以前の会場では使えない')
+_row12(SN13, '各会場の「必要数」列', '必要数（需要）',
+       '=③シートの会場別 必要数', '／'.join(_f12(_nd1[f[0]]) for f in FUTURE),
+       '按分構成比 × その会場のLEGS必要数量')
+_row12(SN13, '各会場の「★納品予測数」列', '納品予測数（出荷計画）',
+       _FX(SN13, H13R, D13, FUTURE[0][0].split(' ')[0], '納品予測数'),
+       '／'.join(_f12(_ship[(_j1, f[0])]) for f in FUTURE),
+       '★このシートの主役。必要数と期首在庫の小さいほうで、在庫が足りていれば必要数と一致する')
+_row12(SN13, '各会場の「不足」列', '不足（欠品見込）',
+       '=必要数 − 納品予測数', '／'.join(_f12(_shortv[(_j1, f[0])]) for f in FUTURE),
+       '在庫を会場順に引き当てるので、不足は必ず後半の会場から出る')
+_row12(SN13, '各会場の「期末在庫」列', '期末在庫',
+       '=期首在庫 − 納品予測数', '次の会場の期首在庫になる', '最後の会場の期末在庫が会期終了後の余剰')
+
 # ---- サマリー -------------------------------------------------------------
 _sec12('■ サマリー')
 _row12('サマリー', 'A列:B列', '結論サマリー', '（数式なし＝①〜⑪の結果を文章化した読み物）', '—',
@@ -3276,6 +3512,9 @@ for _w, _cx in zip([17, 24, 26, 54, 34, 42], 'ABCDEF'):
     ws.column_dimensions[_cx].width = _w
 ws.freeze_panes = 'A6'
 
+# タブ順を番号どおりにする（⑬は⑫の後ろ）
+wb.move_sheet('⑬会場別 納品予測', offset=len(wb.sheetnames)
+              - 1 - wb.sheetnames.index('⑬会場別 納品予測'))
 for s in wb.worksheets:
     s.sheet_properties.pageSetUpPr.fitToPage = True
     s.page_setup.orientation = 'landscape'
