@@ -306,8 +306,12 @@ _mix2 = {j: 0.5 * _mixo2[j] + 0.5 * (PRED[j] / TS) for j in TJ}
 #   開催中会場への納品は倉庫残と直前会場の会期末残から出ているので、この式で相殺される。
 _prest_tot = sum(PREST[j] for j in TJ)
 _psold_tot = sum(PSOLD[j] for j in TJ)
-_held = {j: HELD.get(j, {}).get('qty', 0) for j in TJ}
+_held = {j: HELD.get(j, {}).get('qty', 0) for j in TJ}          # 日報未反映＝ここで控除する
 _held_tot = sum(_held.values())
+# 日報の「持出等／不良／サンプル」。販売可能数で既に控除されているので二重に引かない
+_heldsrc = {j: sum(D[v]['rows'][str(j)].get('held', 0) for v in VS) for j in TJ}
+_heldsrc_tot = sum(_heldsrc.values())
+_heldsrc_by = {v: sum(D[v]['rows'][str(j)].get('held', 0) for j in TJ) for v in VS}
 _sup_of = {j: _wh_of(j) + PREST[j] - _held[j] - PRED[j] for j in TJ}
 _supply = sum(_sup_of.values())
 _gap2 = {j: _mix2[j] * _futq - _sup_of[j] for j in TJ}
@@ -1175,13 +1179,18 @@ bal = [('残在庫想定（台帳 %s／総計）' % STOCK_STAGE, sum(INV[str(j)]
        ('%s 会期%d日 実績販売数' % (PREV, RUN[PREV]), _psold_tot, INT, '会期終了済みの確定値'),
        ('%s 会期末 残（実績）' % PREV, 'PLACEHOLDER_RESUP', INT,
         '販売可能数 − 実績販売数。%s会場へ転送された分と倉庫へ戻った分の合計' % CUR),
-       ('　うち販売不可（予備持出）', _held_tot, INT,
-        '／'.join('%s %s個（%s）' % (dict(T)[k], f"{v['qty']:,}", v['reason'])
-                 for k, v in HELD.items()) or 'なし'),
+       ('　うち販売不可（日報未反映の持出）', _held_tot, INT,
+        ('／'.join('%s %s個（%s）' % (dict(T)[k], f"{v['qty']:,}", v['reason'])
+                  for k, v in HELD.items())
+         if HELD else '日報に載っていない持出がある場合のみここで控除する。現在なし')),
+       ('［参考］会場での持出・不良・ｻﾝﾌﾟﾙ', _heldsrc_tot, INT,
+        '日報の「販売可能数＝納品数−持出・不良・ｻﾝﾌﾟﾙ」で既に控除済み。'
+        '二重に引かないため供給可能在庫の計算には入れていない。内訳：'
+        + '／'.join('%s %s個' % (v, f'{_heldsrc_by[v]:,}') for v in VS if _heldsrc_by[v])),
        ('%sへ納品（初回＋転送＋追納）' % CUR, '=%s!%s%d' % (S1, gcl(C_AV), tot), INT,
         '%s（%s）を含む' % (RESUPPLY_NOTE, RESUPPLY_HOW)),
        ('%s 会期%d日 予測販売数' % (CUR, RUNC), '=%s!%s%d' % (S1, gcl(C_PRED), tot), INT, ''),
-       ('%s以降 供給可能在庫 合計' % FUT1, '=B%d+B%d-B%d-B%d' % (r + 2, r + 4, r + 5, r + 7), INT,
+       ('%s以降 供給可能在庫 合計' % FUT1, '=B%d+B%d-B%d-B%d' % (r + 2, r + 4, r + 5, r + 8), INT,
         '＝倉庫残 ＋ %s会期末残 − 販売不可 − %s会期予測販売。'
         '%sへの納品はこの2つから出ているので相殺される' % (PREV, CUR, CUR)),
        ('確定済み追加発注（入荷予定）', sum(v['qty'] for v in DECIDED.values()), INT,
@@ -1189,7 +1198,7 @@ bal = [('残在庫想定（台帳 %s／総計）' % STOCK_STAGE, sum(INV[str(j)]
         + '／'.join('%s %s%s（%s入荷）' % (dict(T)[j], f"{v['qty']:,}", v['unit'], v['arrive_at'])
                    for j, v in DECIDED.items())),
        ('%s以降 %d会場 必要数' % (FUT1, FUTN), '=G%d' % ftot, INT, ''),
-       ('全体過不足（供給可能＋確定発注−必要）', '=B%d+B%d-B%d' % (r + 8, r + 9, r + 10), '+#,##0;-#,##0;0',
+       ('全体過不足（供給可能＋確定発注−必要）', '=B%d+B%d-B%d' % (r + 9, r + 10, r + 11), '+#,##0;-#,##0;0',
         'プラス＝全体では在庫充足。ただし商品別には過不足が生じる'),
        ('追加生産 必要数（商品別不足の合計）', 'PLACEHOLDER_ADDPROD', INT,
         '下表の商品別「追加生産必要数」の合計。全体余剰でも品目別には不足が出る')]
@@ -1228,7 +1237,7 @@ PH += [('%s以降\n' % FUT1 + '必要数 計', 12, JUDG),
        ('★ロジ在庫\n(%s 実棚)' % WMS_DATE, 12, PatternFill('solid', fgColor='C55A11')),
        ('差引\n倉庫残', 10, PatternFill('solid', fgColor='375623')),
        ('%s会期末\n残（実績）' % PREV, 11, PatternFill('solid', fgColor=VF[PREV])),
-       ('販売不可\n(予備持出)', 10, ALERT),
+       ('販売不可\n(日報未反映)', 11, ALERT),
        ('%sへ納品\n(初回+転送+追納)' % CUR, 12, PatternFill('solid', fgColor=VF[CUR])),
        ('%s 会期%d日\n予測販売' % (CUR, RUNC), 12, PatternFill('solid', fgColor=VF[CUR])),
        ('%s以降\n供給可能計' % FUT1, 12, JUDG),
@@ -1911,7 +1920,7 @@ IH += [('★残在庫想定\n%s' % STOCK_STAGE.replace('(SET)', ''), 13,
       ('残在庫\n金額(税込)', 13, PatternFill('solid', fgColor='375623')),
       ('%sへ納品' % WMS_AFTER, 11, PatternFill('solid', fgColor=VF[WMS_AFTER])),
       ('%s 会期末\n残（実績）' % PREV, 11, PatternFill('solid', fgColor=VF[PREV])),
-      ('販売不可\n(予備持出)', 10, ALERT),
+      ('販売不可\n(日報未反映)', 11, ALERT),
       ('%sへ納品\n(初回+転送+追納)' % CUR, 12, PatternFill('solid', fgColor=VF[CUR])),
       ('%s 会期%d日\n予測販売' % (CUR, RUNC), 12, PatternFill('solid', fgColor=VF[CUR])),
       ('差引 倉庫残\n(即出荷可)', 12, BLUE),
@@ -1999,6 +2008,12 @@ for i, (jan, nm) in enumerate(T):
     if jan in HELD:
         nts.append('★%s（%s会場）。供給可能在庫から%s個を除外している'
                    % (HELD[jan]['reason'], HELD[jan]['at'], f"{HELD[jan]['qty']:,}"))
+    if _heldsrc[jan]:
+        nts.append('会場で持出・不良・ｻﾝﾌﾟﾙ %s個（%s）。'
+                   '日報の販売可能数で控除済みのため供給可能在庫では二重に引いていない'
+                   % (f'{_heldsrc[jan]:,}',
+                      '／'.join('%s%d個' % (v, D[v]['rows'][str(jan)].get('held', 0))
+                               for v in VS if D[v]['rows'][str(jan)].get('held', 0))))
     ws.cell(rr, 27, ' ／ '.join(nts))
 ws.cell(itot, 3, '合計（LEGS 42SKU）')
 for c in list(range(5, 22)):
@@ -2869,6 +2884,8 @@ for i, (jan, nm) in enumerate(T):
         _nt.append('【賞味期限】%s までが販売期限' % SHELF[jan]['sellable_through'])
     if jan in HELD:
         _nt.append('★予備持出 %s個を引当可能在庫から除外済み' % f"{HELD[jan]['qty']:,}")
+    if _heldsrc[jan]:
+        _nt.append('会場で持出・不良 %s個（日報の販売可能数で控除済）' % f'{_heldsrc[jan]:,}')
     if PROD[jan] is None:
         _nt.append('再生産不可。現有在庫の範囲で配分する')
     ws.cell(rr, NCD, ' ／ '.join(_nt))

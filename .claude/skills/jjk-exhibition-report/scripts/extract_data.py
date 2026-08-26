@@ -83,6 +83,11 @@ def read_venue(path):
         if ws.cell(hr, c).value == '納品' and ws.cell(dr, c).value == '合計数':
             deliv_col = c
             break
+    # 会場で販売に回せなかった数（不良交換用の予備・不良・サンプル）。
+    # 日報の「販売可能数 ＝ 納品数 − 持出・不良・ｻﾝﾌﾟﾙ」で既に控除されているので、
+    # 供給可能在庫から二重に引かないこと。記録として持っておくだけにする。
+    held_cols = [c for c in range(1, ws.max_column + 1)
+                 if str(ws.cell(hr, c).value or '') in ('持出等', '不良', 'サンプル')]
     missing = [k for k, v in [('販売数', total_col), ('販売可能数', avail_col),
                               ('理論上在庫', stock_col)] if v is None]
     if missing:
@@ -120,6 +125,7 @@ def read_venue(path):
             deliv=round(_num(ws.cell(r, deliv_col).value)) if deliv_col else 0,
             avail=round(_num(ws.cell(r, avail_col).value)),
             stock=round(_num(ws.cell(r, stock_col).value)),
+            held=round(sum(_num(ws.cell(r, c).value) for c in held_cols)),
         )
     return dict(dates=dates, rows=rows), att
 
@@ -323,9 +329,11 @@ def main():
         warns += check_venue(name, d)
         sales[name] = dict(dates=d['dates'], rows={str(k): v for k, v in d['rows'].items()})
         att[name] = at
-        print('%-6s 日数%3d 商品%4d %s〜%s 入場計%7s'
+        _hd = sum(x.get('held', 0) for x in d['rows'].values())
+        print('%-6s 日数%3d 商品%4d %s〜%s 入場計%7s%s'
               % (name, len(d['dates']), len(d['rows']), d['dates'][0], d['dates'][-1],
-                 format(int(sum(at)), ',')))
+                 format(int(sum(at)), ','),
+                 ('  ／持出・不良・ｻﾝﾌﾟﾙ %d個（販売可能数で控除済）' % _hd) if _hd else ''))
     json.dump(sales, open(os.path.join(a.out, 'sales.json'), 'w'), ensure_ascii=False)
     json.dump(att, open(os.path.join(a.out, 'att.json'), 'w'))
 
