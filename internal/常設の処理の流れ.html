@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>常設の処理の流れ</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; padding: 0; }
+  img, svg { display: block; max-width: 100%; }
+  table { border-collapse: collapse; }
+  @media print {
+    :root {
+      --paper:#fff; --plate:#fff; --ink:#151C27; --ink-soft:#4C5768; --ink-faint:#6D7686;
+      --rule:#C9D0DA; --rule-soft:#E3E7EE; --accent:#2D4A78; --accent-bg:#E7EDF6;
+      --agreed:#2C6650; --agreed-bg:#E3EFEA; --pending:#8A5D14; --pending-bg:#F4EBDA;
+      --against:#8C3A38; --against-bg:#F5E5E4;
+      color-scheme: light;
+    }
+    body { background:#fff; font-size: 10pt; line-height: 1.65; }
+    .wrap { display: block; max-width:none; padding:0; }
+    section { display: block; margin: 0 0 1.1rem; break-inside: avoid; }
+    section > * + * { margin-top: .7rem; }
+    .masthead { display: block; }
+    .masthead > * + * { margin-top: .5rem; }
+    ol.steps { display: block; }
+    ol.steps li { margin-bottom: .3rem; }
+    .scroll, .plate { overflow: visible !important; }
+    table { min-width: 0; font-size: 8.5pt; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; }
+    .plate svg { max-height: 70mm; width: auto; margin: 0 auto; }
+    figure, .scroll, .verdict, table { break-inside: avoid; }
+    h1, h2, h3 { break-after: avoid; }
+    th, td { padding: .35rem .5rem; }
+  }
+</style>
+</head>
+<body>
+<style>
+  :root {
+    --paper:      #F6F7F9;
+    --plate:      #FFFFFF;
+    --ink:        #151C27;
+    --ink-soft:   #4C5768;
+    --ink-faint:  #7E8899;
+    --rule:       #D9DEE6;
+    --rule-soft:  #E8EBF0;
+    --accent:     #2D4A78;
+    --accent-bg:  #E7EDF6;
+    --agreed:     #2C6650;
+    --agreed-bg:  #E3EFEA;
+    --pending:    #8A5D14;
+    --pending-bg: #F4EBDA;
+    --against:    #8C3A38;
+    --against-bg: #F5E5E4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #12161D;
+      --plate:      #FFFFFF;
+      --ink:        #E4E8EF;
+      --ink-soft:   #A3ADBD;
+      --ink-faint:  #78828F;
+      --rule:       #2B323D;
+      --rule-soft:  #232932;
+      --accent:     #8FB2E0;
+      --accent-bg:  #1B2635;
+      --agreed:     #7CC0A2;
+      --agreed-bg:  #17251F;
+      --pending:    #D2A557;
+      --pending-bg: #262015;
+      --against:    #DE908D;
+      --against-bg: #2A1B1B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #12161D;
+    --plate:      #FFFFFF;
+    --ink:        #E4E8EF;
+    --ink-soft:   #A3ADBD;
+    --ink-faint:  #78828F;
+    --rule:       #2B323D;
+    --rule-soft:  #232932;
+    --accent:     #8FB2E0;
+    --accent-bg:  #1B2635;
+    --agreed:     #7CC0A2;
+    --agreed-bg:  #17251F;
+    --pending:    #D2A557;
+    --pending-bg: #262015;
+    --against:    #DE908D;
+    --against-bg: #2A1B1B;
+  }
+  :root[data-theme="light"] {
+    --paper:      #F6F7F9;
+    --plate:      #FFFFFF;
+    --ink:        #151C27;
+    --ink-soft:   #4C5768;
+    --ink-faint:  #7E8899;
+    --rule:       #D9DEE6;
+    --rule-soft:  #E8EBF0;
+    --accent:     #2D4A78;
+    --accent-bg:  #E7EDF6;
+    --agreed:     #2C6650;
+    --agreed-bg:  #E3EFEA;
+    --pending:    #8A5D14;
+    --pending-bg: #F4EBDA;
+    --against:    #8C3A38;
+    --against-bg: #F5E5E4;
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", "Noto Sans JP", "Meiryo", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.85;
+    font-feature-settings: "palt" 1;
+  }
+
+  .wrap {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 4.5rem) clamp(1.1rem, 4vw, 3rem) 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2.6rem, 5vw, 3.8rem);
+  }
+
+  /* ---- masthead ---- */
+  .masthead { display: flex; flex-direction: column; gap: .85rem; }
+  .eyebrow {
+    font-size: .72rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 600;
+  }
+  h1 {
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+    font-size: clamp(1.75rem, 4.4vw, 2.6rem);
+    line-height: 1.35; font-weight: 600; text-wrap: balance;
+    letter-spacing: .01em;
+  }
+  .standfirst { color: var(--ink-soft); max-width: 46em; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: .4rem 1.4rem;
+    padding-top: .9rem; border-top: 1px solid var(--rule);
+    font-size: .8rem; color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- sections ---- */
+  section { display: flex; flex-direction: column; gap: 1.15rem; }
+  h2 {
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+    font-size: clamp(1.18rem, 2.6vw, 1.5rem);
+    font-weight: 600; line-height: 1.45; text-wrap: balance;
+    padding-bottom: .55rem; border-bottom: 2px solid var(--ink);
+  }
+  h3 {
+    font-size: .95rem; font-weight: 700; letter-spacing: .02em;
+    color: var(--accent);
+  }
+  p { max-width: 62em; }
+  .lead { color: var(--ink-soft); }
+
+  /* ---- verdict ---- */
+  .verdict {
+    background: var(--accent-bg);
+    border-left: 3px solid var(--accent);
+    padding: 1.15rem 1.35rem;
+    display: flex; flex-direction: column; gap: .55rem;
+  }
+  .verdict strong { color: var(--accent); }
+
+  /* ---- quote cards ---- */
+  .cards { display: grid; gap: .85rem; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); }
+  .card {
+    background: transparent;
+    border: 1px solid var(--rule);
+    padding: 1rem 1.1rem;
+    display: flex; flex-direction: column; gap: .5rem;
+  }
+  .card .label {
+    font-size: .72rem; font-weight: 700; letter-spacing: .1em;
+    color: var(--ink-faint); text-transform: uppercase;
+  }
+  .card .topic { font-weight: 700; font-size: .95rem; line-height: 1.6; }
+  blockquote {
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+    font-size: .92rem; line-height: 1.9; color: var(--ink-soft);
+    border-left: 2px solid var(--rule); padding-left: .85rem;
+  }
+  blockquote em { font-style: normal; color: var(--ink); font-weight: 600; background: linear-gradient(transparent 62%, var(--accent-bg) 62%); }
+  .src { font-size: .74rem; color: var(--ink-faint); letter-spacing: .04em; }
+
+  /* ---- tables ---- */
+  .scroll { overflow-x: auto; border: 1px solid var(--rule); }
+  table { border-collapse: collapse; width: 100%; min-width: 34rem; font-size: .87rem; }
+  th, td { text-align: left; padding: .62rem .8rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; line-height: 1.7; }
+  thead th {
+    font-size: .74rem; letter-spacing: .08em; color: var(--ink-faint);
+    text-transform: uppercase; border-bottom: 1px solid var(--rule); font-weight: 700;
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td:first-child { font-weight: 600; }
+
+  .pill {
+    display: inline-block; white-space: nowrap;
+    font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+    padding: .12rem .55rem; border-radius: 2px;
+  }
+  .p-ok   { background: var(--agreed-bg);  color: var(--agreed); }
+  .p-wip  { background: var(--pending-bg); color: var(--pending); }
+  .p-no   { background: var(--against-bg); color: var(--against); }
+
+  /* ---- diagram plates ---- */
+  figure { display: flex; flex-direction: column; gap: .6rem; }
+  .plate {
+    background: var(--plate);
+    border: 1px solid var(--rule);
+    padding: 1.2rem .8rem;
+    overflow-x: auto;
+  }
+  .plate pre.mermaid { display: flex; justify-content: center; min-width: 22rem; }
+  figcaption { font-size: .8rem; color: var(--ink-faint); line-height: 1.7; }
+
+  /* ---- step list ---- */
+  ol.steps { display: flex; flex-direction: column; gap: .45rem; padding-left: 1.35rem; max-width: 62em; }
+  ol.steps li::marker { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+  ul.plain { display: flex; flex-direction: column; gap: .35rem; padding-left: 1.2rem; max-width: 62em; }
+  ul.plain li::marker { color: var(--ink-faint); }
+
+  hr.hair { border: none; border-top: 1px solid var(--rule); }
+  .foot { font-size: .8rem; color: var(--ink-faint); border-top: 1px solid var(--rule); padding-top: 1rem; }
+</style>
+<style>
+  /* ---- 3レーン処理フロー ---- */
+  .lanes {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
+    background: var(--plate); border: 1px solid var(--rule); padding: 1.4rem 1.2rem 1.2rem;
+  }
+  .lane { display: flex; flex-direction: column; gap: .45rem; }
+  .lanehead {
+    text-align: center; font-weight: 700; font-size: .9rem; line-height: 1.4;
+    padding: .6rem .5rem; color: #fff;
+  }
+  .lanehead .sub { display: block; font-size: .7rem; font-weight: 400; opacity: .9; margin-top: .1rem; }
+  .l-com .lanehead { background: #4E9AC4; }
+  .l-add .lanehead { background: #E3A008; }
+  .l-md  .lanehead { background: #6FB98A; }
+  .lanenote { font-size: .72rem; line-height: 1.6; color: var(--ink-faint); text-align: center; }
+  .arrow { text-align: center; color: var(--rule); font-size: 1rem; line-height: 1; }
+  .lbox { border: 1px solid var(--rule); background: var(--paper); }
+  .lbox .lt {
+    font-size: .8rem; font-weight: 700; color: var(--ink);
+    padding: .4rem .6rem; border-bottom: 1px solid var(--rule-soft);
+  }
+  .lbox .ld { padding: .4rem .6rem; display: flex; flex-direction: column; gap: .12rem; }
+  .lbox .ld span { font-size: .73rem; line-height: 1.6; color: var(--ink-soft); }
+  .l-com .lbox.pay { border-color: #4E9AC4; }
+  .l-com .lbox.pay .lt { background: #4E9AC4; color: #fff; border-bottom-color: #4E9AC4; }
+  .l-add .lbox.pay { border-color: #E3A008; }
+  .l-add .lbox.pay .lt { background: #E3A008; color: #fff; border-bottom-color: #E3A008; }
+  .l-md .lbox.pay { border-color: #6FB98A; }
+  .l-md .lbox.pay .lt { background: #6FB98A; color: #fff; border-bottom-color: #6FB98A; }
+  .split2 { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+  .todo {
+    border: 1px dashed var(--pending); background: var(--pending-bg);
+    padding: .4rem .6rem; font-size: .73rem; line-height: 1.6; color: var(--pending);
+  }
+  .goalbar {
+    margin-top: 1rem; border: 1px solid var(--agreed); background: var(--agreed-bg);
+    padding: .7rem .9rem; display: grid; grid-template-columns: 1fr 1fr; gap: .8rem;
+  }
+  .goalbar div { font-size: .78rem; line-height: 1.6; color: var(--ink); }
+  .goalbar strong { display: block; color: var(--agreed); }
+  @media (max-width: 860px) {
+    .lanes { grid-template-columns: 1fr; }
+    .goalbar { grid-template-columns: 1fr; }
+  }
+  @media print {
+    .lanes { break-inside: avoid; padding: .7rem .5rem; }
+    .lbox .ld span, .lanenote { font-size: 8pt; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">常設コナン ／ 委員会組成にともなう処理フロー　別紙</div>
+    <h1>常設の処理の流れ</h1>
+    <p class="lead">支払いの出どころごとに、3つの流れに分かれます。</p>
+  </header>
+
+  <section>
+    <div class="lanes">
+
+      <div class="lane l-com">
+        <div class="lanehead">委員会<span class="sub">初期投資</span></div>
+        <div class="lanenote">什器・初期投資など、委員会口座から支払うもの</div>
+        <div class="arrow">↓</div>
+        <div class="lbox">
+          <div class="lt">ワークフロー申請・承認</div>
+          <div class="ld"><span>委員会の意思決定として承認を取る</span></div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="lbox">
+          <div class="lt">発注時に区分を確定して発注</div>
+          <div class="ld"><span>在庫／非在庫・按分・帰属を確定</span></div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="lbox pay">
+          <div class="lt">委員会口座から支払い</div>
+          <div class="ld"><span>経理と連携して実行</span></div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="lbox">
+          <div class="lt">データ生成</div>
+          <div class="ld"><span>仕訳データ生成アプリで借方・貸方を自動生成</span></div>
+        </div>
+      </div>
+
+      <div class="lane l-add">
+        <div class="lanehead">MD<span class="sub">付随請求</span></div>
+        <div class="lanenote">デザイン費等、元々業務依頼チャットに流していたもの</div>
+        <div class="arrow">↓</div>
+        <div class="lbox">
+          <div class="lt">発注時に区分を確定して発注</div>
+          <div class="ld"><span>在庫／非在庫・按分・帰属を確定</span></div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="lbox pay">
+          <div class="lt">LTR口座から支払い</div>
+        </div>
+      </div>
+
+      <div class="lane l-md">
+        <div class="lanehead">MD</div>
+        <div class="lanenote">SCMが営管連携するもの／佐々木さんがODM部と連携の上、営管依頼するもの</div>
+        <div class="arrow">↓</div>
+        <div class="split2">
+          <div class="lbox">
+            <div class="lt">協力先ルート</div>
+            <div class="ld">
+              <span>SCMが佐々木さんから数決連携 → 協力先から最終見積 → 発注書発行（営管連携）→ 協力先から請求書</span>
+            </div>
+          </div>
+          <div class="lbox">
+            <div class="lt">ODM部ルート</div>
+            <div class="ld">
+              <span>SCMが佐々木さんから数決連携 → ODM部から最終見積 → 発注書発行（営管連携）→ ODM部から請求書</span>
+            </div>
+          </div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="todo">予備分の按分処理 ── 取り扱いは未確定</div>
+        <div class="arrow">↓</div>
+        <div class="lbox pay">
+          <div class="lt">LTR口座から支払い</div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="todo">営管からMD関連処理のデータを受領 ── 要確認</div>
+      </div>
+
+    </div>
+
+    <div class="goalbar">
+      <div><strong>委員会へ試算表を提出</strong>5営業日以内</div>
+      <div><strong>西田さんへ連携</strong>必要なデータを整形して渡す（財務管理表／LTR全体）</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>MDの発注が動く順番</h2>
+    <ol class="steps">
+      <li>SCMが協力先から見積書を入手し、数決を待つ。</li>
+      <li>MD計画表で佐々木さん・高田さんが数決した内容を、SCMへ連携する。</li>
+      <li>SCMが協力先へ請求書の発行を依頼し、あわせて<strong>【在庫】仕入リスト</strong>へ内容を入力する。</li>
+      <li>ビズアシの渡邉さんへ連携する。</li>
+      <li>渡邉さんが案件管理表などを営業管理へ連携し、協力先へ出す発注書の発行を依頼する。</li>
+    </ol>
+  </section>
+
+</div>
+
+</body>
+</html>
