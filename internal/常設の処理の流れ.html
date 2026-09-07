@@ -265,6 +265,7 @@
   .l-md .lbox.pay { border-color: #6FB98A; }
   .l-md .lbox.pay .lt { background: #6FB98A; color: #fff; border-bottom-color: #6FB98A; }
   .split2 { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+  .split2.stack { grid-template-columns: 1fr; }
   .todo {
     border: 1px dashed var(--pending); background: var(--pending-bg);
     padding: .4rem .6rem; font-size: .73rem; line-height: 1.6; color: var(--pending);
@@ -298,15 +299,15 @@
 
       <div class="lane l-com">
         <div class="lanehead">委員会<span class="sub">初期投資</span></div>
-        <div class="lanenote">什器・初期投資など、委員会口座から支払うもの</div>
+        <div class="lanenote">初期投資など、委員会口座から支払うもの</div>
         <div class="arrow">↓</div>
         <div class="lbox">
           <div class="lt">ワークフロー申請・承認</div>
-          <div class="ld"><span>委員会の意思決定として承認を取る</span></div>
+          <div class="ld"><span>委員会承認済みの費用を幹事会社として処理</span></div>
         </div>
         <div class="arrow">↓</div>
         <div class="lbox">
-          <div class="lt">発注時に区分を確定して発注</div>
+          <div class="lt">発注時に按分を確定して発注</div>
           <div class="ld"><span>在庫／非在庫・按分・帰属を確定</span></div>
         </div>
         <div class="arrow">↓</div>
@@ -319,19 +320,42 @@
           <div class="lt">データ生成</div>
           <div class="ld"><span>仕訳データ生成アプリで借方・貸方を自動生成</span></div>
         </div>
+        <div class="arrow">↓</div>
+        <div class="lbox">
+          <div class="lt">会計事務所へデータ連携</div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="lbox">
+          <div class="lt">会計事務所にて試算表作成</div>
+        </div>
       </div>
 
       <div class="lane l-add">
         <div class="lanehead">MD<span class="sub">付随請求</span></div>
-        <div class="lanenote">デザイン費等、元々業務依頼チャットに流していたもの</div>
+        <div class="lanenote">物販付随原価やロイヤリティ等、元々業務依頼チャットに流していたもの</div>
+        <div class="arrow">↓</div>
+        <div class="split2 stack">
+          <div class="lbox">
+            <div class="lt">協力先ルート</div>
+            <div class="ld">
+              <span>SCMと佐々木さんが連携し数決確定＆依頼 → 協力先から最終見積 → 遠藤が最終見積を確認し、業務依頼チャットへ按分用品目コードを含め詳細記載</span>
+            </div>
+          </div>
+          <div class="lbox">
+            <div class="lt">事業部ルート</div>
+            <div class="ld">
+              <span>担当営業が版元費用（証紙やRY）、MDに付随する原価（デザイン、校正、型代など）の見積書（請求書）を直接入手 → コナンダイナー専用MDフォルダへ格納＆遠藤へコナンダイナーチャットで発注処理依頼 → 遠藤が最終見積を確認し、業務依頼チャットへ按分用品目コードを含め詳細記載</span>
+            </div>
+          </div>
+        </div>
         <div class="arrow">↓</div>
         <div class="lbox">
-          <div class="lt">発注時に区分を確定して発注</div>
+          <div class="lt">発注時に按分を確定して発注</div>
           <div class="ld"><span>在庫／非在庫・按分・帰属を確定</span></div>
         </div>
         <div class="arrow">↓</div>
         <div class="lbox pay">
-          <div class="lt">LTR口座から支払い</div>
+          <div class="lt">レッグス口座（主にSCM関連）／LTR口座（証紙、RY、デザイン費など）から支払い</div>
         </div>
       </div>
 
@@ -370,6 +394,23 @@
       <div><strong>西田さんへ連携</strong>MDに関してはデータの連携が無い可能性あり？ ── 要確認<br>委員会費用に関しては必要データを整形して渡す ── 可能（要・不要について不明）</div>
     </div>
   </section>
+
+  <section>
+    <h2>この形にすると、誰の何が減るか</h2>
+    <div class="scroll">
+      <table>
+        <colgroup><col style="width:8rem"><col style="width:15rem"><col></colgroup>
+        <thead><tr><th></th><th>内容</th><th>今後の進め方</th></tr></thead>
+        <tbody>
+          <tr><td>営業①</td><td>コナンダイナーのチャットか業務依頼チャットか判断して振り分ける</td><td>コナンダイナー案件分については依頼者1人を確定し、チャット1本に投げるだけ</td></tr>
+          <tr><td>営業②</td><td>業務依頼チャットへの依頼と非在庫リストへの入力</td><td>コナンダイナー案件分については業務依頼チャットへの依頼も非在庫リストへの入力も不要となるため、入力作業の工数が減る</td></tr>
+          <tr><td>西田さん</td><td>伝票処理・按分・振替・問い合わせ対応／受け取る数字が後から動く</td><td>受け取ったデータを取り込むだけ。日報のまとめも不要。按分の費用も遠藤が計算し、対象金額を提示する。締めた時点で確定した試算表となり、事業計画の進捗・推移も見える化</td></tr>
+          <tr><td>業務効率</td><td>委員会口座分の手作業での仕訳入力</td><td>AIを駆使した仕訳専用アプリによる工数の削減（＝人件費の削減に寄与）、業務効率化を実現</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
 
   <section>
     <h2>MDの発注が動く順番</h2>
