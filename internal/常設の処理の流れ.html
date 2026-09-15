@@ -398,7 +398,35 @@
     </div>
   </section>
 
+<style>
+  /* ---- 誰が何をやるか ---- */
+  .who .sub { display: block; font-size: .72rem; font-weight: 400; color: var(--ink-faint); margin-top: .1rem; }
+  .who .ln { display: block; }
+  .who .ln + .ln { margin-top: .4rem; }
+  .bridge { font-size: .8rem; color: var(--ink-soft); border-top: 1px solid var(--rule); padding-top: .9rem; }
+  @media print { .pagebreak { break-before: page; } }
+</style>
+
   <section>
+    <h2>誰が何をやるか</h2>
+    <div class="scroll who">
+      <table>
+        <colgroup><col style="width:11rem"><col><col></colgroup>
+        <thead><tr><th>担当者・部門</th><th>対応内容</th><th>判断・注意点／次の連携</th></tr></thead>
+        <tbody>
+          <tr><td>協力先</td><td><span class="ln">確認：SCM・LTR制作（事業部担当）が決めた生産商品や資材内容を確認し、納期・金額などを提示</span><span class="ln">対応：最終見積書（請求書）を作成・提出</span></td><td><span class="ln">注意：最終金額が分かる状態にする</span><span class="ln">連携：LTR管理とSCMが取り決めているMD関連の格納先へ最終見積書（請求書）を格納</span></td></tr>
+          <tr><td>SCM ⇔ LTR制作（事業部担当）⇔ 佐々木さん</td><td><span class="ln">確認：MD・資材等の発注内容確認、事業部上長承認、発注依頼</span><span class="ln">対応：SCM、LTR制作（事業部担当）と連携し数量等を確定。必要な資材・MD発注をFE部へ発注依頼する</span></td><td><span class="ln">注意：納期があるためSCM側の発注処理が先に動く場合がある。LTR発注処理はMDも経費（原価）も計上月までに処理で良い</span><span class="ln">連携：最終見積書（請求書）の内容確認、営業管理（大網さん）への指示は遠藤 or ﾋﾞｽﾞｱｼ渡邉さん（羽淵さん）にて対応</span></td></tr>
+          <tr><td>遠藤 or ﾋﾞｽﾞｱｼ渡邉さん（羽淵さん）<span class="sub">判断・処理指示</span></td><td><span class="ln">確認：協力先からの最終見積、SCM等で進んでいる発注情報／按分対象費用を事業部担当者へ確認</span><span class="ln">対応：MD本体／物販付随経費（按分対象）／非在庫費用を仕分け。按分用の品目コードを取得・確認し、非在庫リストへ必要情報を記載</span></td><td><span class="ln">注意：不明な費用は事業部へ確認して処理判断。先に按分発注し、按分漏れ等による原価の誤紐付けを防止</span><span class="ln">連携：非在庫リスト／業務依頼チャットへ記載・連携、事業部上長へ承認依頼</span></td></tr>
+          <tr><td>遠藤 → 羽淵さん<span class="sub">既存社内承認ルート</span></td><td><span class="ln">確認：遠藤が非在庫リストへ記載・依頼 → 羽淵さんが発注依頼内容・見積書（請求書）を確認</span><span class="ln">対応：LTR既存ルートに沿って発注依頼・承認依頼を行う</span></td><td><span class="ln">注意：羽淵さんの業務は大きな変更なし。事業部は遠藤へ発注・支払依頼をすれば依頼完了</span><span class="ln">連携：営業管理（大網さん）</span></td></tr>
+          <tr><td>営業管理（大網さん）</td><td><span class="ln">確認：非在庫リスト、品目コード、承認済み発注情報</span><span class="ln">対応：内容確認後、発注処理（システム連携）</span></td><td><span class="ln">注意：常設コナンでは按分費用の事前発注処理が発生。CL等、他事業部と同様の処理</span><span class="ln">連携：社内システム連携完了</span></td></tr>
+          <tr><td>西田さん</td><td><span class="ln">確認：発注・仕入情報</span><span class="ln">対応：ﾋﾞｽﾞｱｼさんで判断できない発注内容の確認・相談、案件ごとの注意事項のチェック</span></td><td><span class="ln">注意：常設コナン分の後からの按分金額計算作業は減る。必要時は遠藤から金額を連携</span><span class="ln">連携：財務管理等</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="bridge">上記フローへ変更することで、各担当者の作業負荷・役割は以下のように変わる。</p>
+  </section>
+
+  <section class="pagebreak">
     <h2>この形にすると、誰の何が減るか</h2>
     <div class="scroll">
       <table>
