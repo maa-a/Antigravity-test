@@ -237,7 +237,7 @@
 <style>
   /* ---- 3レーン処理フロー ---- */
   .lanes {
-    display: grid; grid-template-columns: 0.9fr 1.45fr 0.95fr; gap: 1rem;
+    display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 1rem;
     background: var(--plate); border: 1px solid var(--rule); padding: 1.4rem 1.2rem 1.2rem;
   }
   .lane { display: flex; flex-direction: column; gap: .45rem; }
@@ -320,7 +320,7 @@
         </div>
         <div class="arrow">↓</div>
         <div class="lbox">
-          <div class="lt">発注時に按分を確定して発注</div>
+          <div class="lt">発注時に按分を確定して発注（営業管理・大網さん）</div>
           <div class="ld"><span>在庫／非在庫・按分・帰属を確定</span></div>
         </div>
         <div class="arrow">↓</div>
@@ -349,50 +349,25 @@
           <div class="ld"><span>決まった4つの按分用品目コードを案件用に生成</span></div>
         </div>
         <div class="arrow">↓</div>
-
         <div class="split2">
-          <div class="branch">
-            <div class="brhead">A：協力先ルート</div>
-            <div class="mini"><b>SCM・LTR制作</b><span>商品／資材内容を確定</span></div>
-            <div class="arrow">↓</div>
-            <div class="mini"><b>協力先</b><span>最終見積を提出</span></div>
-            <div class="arrow">↓</div>
-            <div class="mini"><b>SCM・LTR事業部・佐々木さん</b><span>商品／資材数決、FE部へ発注</span></div>
+          <div class="lbox">
+            <div class="lt">協力先ルート</div>
+            <div class="ld"><span>SCM・LTR制作が商品／資材内容を確定 → 協力先が最終見積を提出 → SCM・LTR事業部・佐々木さんが数決し、FE部へ発注</span></div>
           </div>
-          <div class="branch">
-            <div class="brhead">B：事業部ルート</div>
-            <div class="mini"><b>営業担当</b><span>物販付随費用等の見積を直接取得</span></div>
-            <div class="arrow">↓</div>
-            <div class="mini"><b>MD関連フォルダへ格納</b></div>
-            <div class="arrow">↓</div>
-            <div class="mini"><b>遠藤さんへ処理依頼</b></div>
+          <div class="lbox">
+            <div class="lt">事業部ルート</div>
+            <div class="ld"><span>営業担当が見積を直接取得 → MD関連フォルダへ格納 → 遠藤さんへ処理依頼</span></div>
           </div>
         </div>
-
         <div class="merge">↘　　↙</div>
         <div class="mergelabel">ここから共通</div>
-
         <div class="lbox">
-          <div class="lt">遠藤さん</div>
-          <div class="ld"><span>内容を確認し、MD本体／付随経費／按分対象を仕分け</span></div>
+          <div class="lt">遠藤さんが仕分け・処理指示</div>
+          <div class="ld"><span>内容を確認し、MD本体／付随経費／按分対象を仕分け → 按分対象は品目コードを取得し非在庫リストへ記載 → 事業部承認 → 羽渕さん等が既存ルートで営業管理へ連携</span></div>
         </div>
         <div class="arrow">↓</div>
         <div class="lbox">
-          <div class="lt">按分対象の場合</div>
-          <div class="ld"><span>品目コード取得（遠藤 or ﾋﾞｽﾞｱｼさん）＋非在庫リストへ記載</span></div>
-        </div>
-        <div class="arrow">↓</div>
-        <div class="lbox">
-          <div class="lt">事業部承認</div>
-        </div>
-        <div class="arrow">↓</div>
-        <div class="lbox">
-          <div class="lt">羽渕さん等</div>
-          <div class="ld"><span>既存ルートで営管へ連携</span></div>
-        </div>
-        <div class="arrow">↓</div>
-        <div class="lbox">
-          <div class="lt">発注時に按分を確定して発注（営管・大網さん）</div>
+          <div class="lt">発注時に按分を確定して発注（営業管理・大網さん）</div>
           <div class="ld"><span>在庫／非在庫・按分・帰属を確定</span></div>
         </div>
         <div class="arrow">↓</div>
@@ -420,7 +395,7 @@
         </div>
         <div class="arrow">↓</div>
         <div class="lbox">
-          <div class="lt">SCM、ODMのフィーを載せた費用で確定して発注</div>
+          <div class="lt">SCM、ODMのフィーを載せた費用で確定して発注（営業管理・大網さん）</div>
           <div class="ld"><span>在庫商品のみ【在庫】仕入リストへ遠藤にて入力し確定（按分費用の確認、選定を事業部連携し入力）</span></div>
         </div>
         <div class="arrow">↓</div>
