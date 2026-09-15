@@ -482,15 +482,71 @@
   </section>
 
 
+<style>
+  /* ---- 発注が動く順番 ---- */
+  .seq { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .seqcard { border: 1px solid var(--rule); background: var(--plate); padding: .9rem 1.1rem 1rem; }
+  .seqcard .st {
+    font-size: .84rem; font-weight: 700; color: var(--ink);
+    padding-bottom: .5rem; margin-bottom: .6rem; border-bottom: 1px solid var(--rule-soft);
+  }
+  .seqcard ol.steps { gap: .3rem; }
+  .seqcard ol.steps li { font-size: .8rem; line-height: 1.7; }
+  .hl { background: var(--pending-bg); color: var(--pending); font-weight: 700; padding: .05rem .25rem; }
+  .seqnote { font-size: .72rem; line-height: 1.6; color: var(--ink-faint); margin-top: .45rem; padding-left: 1.35rem; }
+  @media (max-width: 780px) { .seq { grid-template-columns: 1fr; } }
+</style>
+
   <section>
-    <h2>MDの発注が動く順番</h2>
-    <ol class="steps">
-      <li>SCMが協力先から見積書を入手し、数決を待つ。</li>
-      <li>MD計画表で佐々木さん・高田さんが数決した内容を、SCMへ連携する。</li>
-      <li>SCMが協力先へ請求書の発行を依頼し、あわせて<strong>【在庫】仕入リスト</strong>へ内容を入力する。</li>
-      <li>ビズアシの渡邉さんへ連携する。</li>
-      <li>渡邉さんが案件管理表などを営業管理へ連携し、協力先へ出す発注書の発行を依頼する。</li>
-    </ol>
+    <h2>発注が動く順番</h2>
+    <div class="seq">
+      <div class="seqcard">
+        <div class="st">MD商品の発注が動く順番</div>
+        <ol class="steps">
+          <li>生産商品・数量確定</li>
+          <li>協力先へ内容連携</li>
+          <li>最終見積書格納</li>
+          <li>FE部へ発注依頼</li>
+          <li>LTR側で内容確認</li>
+          <li>発注処理・連携</li>
+        </ol>
+      </div>
+      <div class="seqcard">
+        <div class="st">按分費用の発注が動く順番</div>
+        <ol class="steps">
+          <li>最終見積書を確認</li>
+          <li>費用区分を確認</li>
+          <li>按分対象を確定</li>
+          <li><span class="hl">発注前に按分用品目コードを取得</span></li>
+          <li>非在庫リストへ記載</li>
+          <li>承認 → 営業管理へ連携</li>
+        </ol>
+        <p class="seqnote">※発注後ではなく、発注前に按分対象を確定</p>
+      </div>
+      <div class="seqcard">
+        <div class="st">資材の発注が動く順番</div>
+        <ol class="steps">
+          <li>資材内容・数量確認</li>
+          <li>協力先へ内容連携</li>
+          <li>最終見積書格納</li>
+          <li>FE部へ資材発注依頼</li>
+          <li>必要時SCM側で先行</li>
+          <li>LTR側で処理</li>
+        </ol>
+      </div>
+      <div class="seqcard">
+        <div class="st">非在庫費用の発注が動く順番</div>
+        <ol class="steps">
+          <li>最終見積書を確認</li>
+          <li>費用区分を確認</li>
+          <li>非在庫費用と判断</li>
+          <li><span class="hl">非在庫リストへ必要情報を記載</span></li>
+          <li>業務依頼チャットへ連携</li>
+          <li>承認 → 営業管理へ連携</li>
+        </ol>
+        <p class="seqnote">※按分用品目コードの取得は不要</p>
+      </div>
+    </div>
   </section>
 
 </div>
