@@ -1,7 +1,9 @@
 """案件管理表の払出数量を、SAP在庫データの指定倉庫だけで賄えるか確認する。
 
 使い方:
-  python3 check.py <案件管理表.xlsx> <シート名> <開始行> <終了行> <SAP在庫.xlsx> [保管場所コード=CX01]
+  python3 check.py <案件管理表.xlsx> <シート名> <開始行> <終了行> <SAP在庫.xlsx> [保管場所コード=CX01] [--xlsx 出力.xlsx]
+
+  --xlsx を付けると、品目ごとの在庫数・払出数・払出後残数の一覧Excelも出力する。
 
 判定ルール:
   - 照合は E列の品目コードで行う（F列の品目名は参考）。
@@ -12,8 +14,12 @@ import re, sys, unicodedata, warnings
 import openpyxl, pandas as pd
 
 warnings.filterwarnings('ignore')
-req_path, sheet, start, end, sap_path = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5]
-loc = sys.argv[6] if len(sys.argv) > 6 else 'CX01'
+args = sys.argv[1:]
+out = None
+if '--xlsx' in args:
+    i = args.index('--xlsx'); out = args[i + 1]; del args[i:i + 2]
+req_path, sheet, start, end, sap_path = args[0], args[1], int(args[2]), int(args[3]), args[4]
+loc = args[5] if len(args) > 5 else 'CX01'
 
 norm = lambda s: unicodedata.normalize('NFKC', str(s or '')).replace(' ', '')
 
@@ -52,3 +58,8 @@ print(f'品目名の不一致（"?"以外の差）: {len(name_diff)} 件')
 for x in name_diff: print('  行', x[0], x[1], f'案件管理表=[{x[2]}] SAP=[{x[3]}]')
 print(f'残数ちょうど0（問題なし・参考）: {len(zero)} 件')
 for x in zero: print('  行', x[0], x[1], x[2], f'払出 {x[3]}')
+
+if out:
+    from export import write_xlsx
+    write_xlsx(out, req, sap, loc, sheet, start, end, req_path, sap_path, same_name)
+    print('Excel出力:', out)
