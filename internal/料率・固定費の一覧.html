@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>料率・固定費の一覧</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; padding: 0; }
+  img, svg { display: block; max-width: 100%; }
+  table { border-collapse: collapse; }
+  @media print {
+    :root {
+      --paper:#fff; --plate:#fff; --ink:#151C27; --ink-soft:#4C5768; --ink-faint:#6D7686;
+      --rule:#C9D0DA; --rule-soft:#E3E7EE; --accent:#2D4A78; --accent-bg:#E7EDF6;
+      --agreed:#2C6650; --agreed-bg:#E3EFEA; --pending:#8A5D14; --pending-bg:#F4EBDA;
+      --against:#8C3A38; --against-bg:#F5E5E4;
+      color-scheme: light;
+    }
+    body { background:#fff; font-size: 10pt; line-height: 1.65; }
+    .wrap { display: block; max-width:none; padding:0; }
+    section { display: block; margin: 0 0 1.1rem; break-inside: avoid; }
+    section > * + * { margin-top: .7rem; }
+    .masthead { display: block; }
+    .masthead > * + * { margin-top: .5rem; }
+    ol.steps { display: block; }
+    ol.steps li { margin-bottom: .3rem; }
+    .scroll, .plate { overflow: visible !important; }
+    table { min-width: 0; font-size: 8.5pt; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; }
+    .plate svg { max-height: 70mm; width: auto; margin: 0 auto; }
+    figure, .scroll, .verdict, table { break-inside: avoid; }
+    h1, h2, h3 { break-after: avoid; }
+    th, td { padding: .35rem .5rem; }
+  }
+</style>
+</head>
+<body>
+<style>
+  :root {
+    --paper:      #F6F7F9;
+    --plate:      #FFFFFF;
+    --ink:        #151C27;
+    --ink-soft:   #4C5768;
+    --ink-faint:  #7E8899;
+    --rule:       #D9DEE6;
+    --rule-soft:  #E8EBF0;
+    --accent:     #2D4A78;
+    --accent-bg:  #E7EDF6;
+    --agreed:     #2C6650;
+    --agreed-bg:  #E3EFEA;
+    --pending:    #8A5D14;
+    --pending-bg: #F4EBDA;
+    --against:    #8C3A38;
+    --against-bg: #F5E5E4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #12161D;
+      --plate:      #FFFFFF;
+      --ink:        #E4E8EF;
+      --ink-soft:   #A3ADBD;
+      --ink-faint:  #78828F;
+      --rule:       #2B323D;
+      --rule-soft:  #232932;
+      --accent:     #8FB2E0;
+      --accent-bg:  #1B2635;
+      --agreed:     #7CC0A2;
+      --agreed-bg:  #17251F;
+      --pending:    #D2A557;
+      --pending-bg: #262015;
+      --against:    #DE908D;
+      --against-bg: #2A1B1B;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #12161D;
+    --plate:      #FFFFFF;
+    --ink:        #E4E8EF;
+    --ink-soft:   #A3ADBD;
+    --ink-faint:  #78828F;
+    --rule:       #2B323D;
+    --rule-soft:  #232932;
+    --accent:     #8FB2E0;
+    --accent-bg:  #1B2635;
+    --agreed:     #7CC0A2;
+    --agreed-bg:  #17251F;
+    --pending:    #D2A557;
+    --pending-bg: #262015;
+    --against:    #DE908D;
+    --against-bg: #2A1B1B;
+  }
+  :root[data-theme="light"] {
+    --paper:      #F6F7F9;
+    --plate:      #FFFFFF;
+    --ink:        #151C27;
+    --ink-soft:   #4C5768;
+    --ink-faint:  #7E8899;
+    --rule:       #D9DEE6;
+    --rule-soft:  #E8EBF0;
+    --accent:     #2D4A78;
+    --accent-bg:  #E7EDF6;
+    --agreed:     #2C6650;
+    --agreed-bg:  #E3EFEA;
+    --pending:    #8A5D14;
+    --pending-bg: #F4EBDA;
+    --against:    #8C3A38;
+    --against-bg: #F5E5E4;
+  }
+
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", "Noto Sans JP", "Meiryo", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.85;
+    font-feature-settings: "palt" 1;
+  }
+
+  .wrap {
+    max-width: 62rem;
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 4.5rem) clamp(1.1rem, 4vw, 3rem) 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2.6rem, 5vw, 3.8rem);
+  }
+
+  /* ---- masthead ---- */
+  .masthead { display: flex; flex-direction: column; gap: .85rem; }
+  .eyebrow {
+    font-size: .72rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 600;
+  }
+  h1 {
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+    font-size: clamp(1.75rem, 4.4vw, 2.6rem);
+    line-height: 1.35; font-weight: 600; text-wrap: balance;
+    letter-spacing: .01em;
+  }
+  .standfirst { color: var(--ink-soft); max-width: 46em; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: .4rem 1.4rem;
+    padding-top: .9rem; border-top: 1px solid var(--rule);
+    font-size: .8rem; color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- sections ---- */
+  section { display: flex; flex-direction: column; gap: 1.15rem; }
+  h2 {
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+    font-size: clamp(1.18rem, 2.6vw, 1.5rem);
+    font-weight: 600; line-height: 1.45; text-wrap: balance;
+    padding-bottom: .55rem; border-bottom: 2px solid var(--ink);
+  }
+  h3 {
+    font-size: .95rem; font-weight: 700; letter-spacing: .02em;
+    color: var(--accent);
+  }
+  p { max-width: 62em; }
+  .lead { color: var(--ink-soft); }
+
+  /* ---- verdict ---- */
+  .verdict {
+    background: var(--accent-bg);
+    border-left: 3px solid var(--accent);
+    padding: 1.15rem 1.35rem;
+    display: flex; flex-direction: column; gap: .55rem;
+  }
+  .verdict strong { color: var(--accent); }
+
+  /* ---- quote cards ---- */
+  .cards { display: grid; gap: .85rem; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); }
+  .card {
+    background: transparent;
+    border: 1px solid var(--rule);
+    padding: 1rem 1.1rem;
+    display: flex; flex-direction: column; gap: .5rem;
+  }
+  .card .label {
+    font-size: .72rem; font-weight: 700; letter-spacing: .1em;
+    color: var(--ink-faint); text-transform: uppercase;
+  }
+  .card .topic { font-weight: 700; font-size: .95rem; line-height: 1.6; }
+  blockquote {
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+    font-size: .92rem; line-height: 1.9; color: var(--ink-soft);
+    border-left: 2px solid var(--rule); padding-left: .85rem;
+  }
+  blockquote em { font-style: normal; color: var(--ink); font-weight: 600; background: linear-gradient(transparent 62%, var(--accent-bg) 62%); }
+  .src { font-size: .74rem; color: var(--ink-faint); letter-spacing: .04em; }
+
+  /* ---- tables ---- */
+  .scroll { overflow-x: auto; border: 1px solid var(--rule); }
+  table { border-collapse: collapse; width: 100%; min-width: 34rem; font-size: .87rem; }
+  th, td { text-align: left; padding: .62rem .8rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; line-height: 1.7; }
+  thead th {
+    font-size: .74rem; letter-spacing: .08em; color: var(--ink-faint);
+    text-transform: uppercase; border-bottom: 1px solid var(--rule); font-weight: 700;
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td:first-child { font-weight: 600; }
+
+  .pill {
+    display: inline-block; white-space: nowrap;
+    font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+    padding: .12rem .55rem; border-radius: 2px;
+  }
+  .p-ok   { background: var(--agreed-bg);  color: var(--agreed); }
+  .p-wip  { background: var(--pending-bg); color: var(--pending); }
+  .p-no   { background: var(--against-bg); color: var(--against); }
+
+  /* ---- diagram plates ---- */
+  figure { display: flex; flex-direction: column; gap: .6rem; }
+  .plate {
+    background: var(--plate);
+    border: 1px solid var(--rule);
+    padding: 1.2rem .8rem;
+    overflow-x: auto;
+  }
+  .plate pre.mermaid { display: flex; justify-content: center; min-width: 22rem; }
+  figcaption { font-size: .8rem; color: var(--ink-faint); line-height: 1.7; }
+
+  /* ---- step list ---- */
+  ol.steps { display: flex; flex-direction: column; gap: .45rem; padding-left: 1.35rem; max-width: 62em; }
+  ol.steps li::marker { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+  ul.plain { display: flex; flex-direction: column; gap: .35rem; padding-left: 1.2rem; max-width: 62em; }
+  ul.plain li::marker { color: var(--ink-faint); }
+
+  hr.hair { border: none; border-top: 1px solid var(--rule); }
+  .foot { font-size: .8rem; color: var(--ink-faint); border-top: 1px solid var(--rule); padding-top: 1rem; }
+</style>
+<style>
+  /* ---- 3レーン処理フロー ---- */
+  .lanes {
+    display: grid; grid-template-columns: 1fr 1.25fr 1fr; gap: 1rem;
+    background: var(--plate); border: 1px solid var(--rule); padding: 1.4rem 1.2rem 1.2rem;
+  }
+  .lane { display: flex; flex-direction: column; gap: .45rem; }
+  .lanehead {
+    text-align: center; font-weight: 700; font-size: .9rem; line-height: 1.4;
+    padding: .6rem .5rem; color: #fff;
+  }
+  .lanehead .sub { display: block; font-size: .7rem; font-weight: 400; opacity: .9; margin-top: .1rem; }
+  .l-com .lanehead { background: #4E9AC4; }
+  .l-add .lanehead { background: #E3A008; }
+  .l-md  .lanehead { background: #6FB98A; }
+  .lanenote { font-size: .72rem; line-height: 1.6; color: var(--ink-faint); text-align: center; }
+  .arrow { text-align: center; color: var(--rule); font-size: 1rem; line-height: 1; }
+  .lbox { border: 1px solid var(--rule); background: var(--paper); }
+  .lbox .lt {
+    font-size: .8rem; font-weight: 700; color: var(--ink);
+    padding: .4rem .6rem; border-bottom: 1px solid var(--rule-soft);
+  }
+  .lbox .ld { padding: .4rem .6rem; display: flex; flex-direction: column; gap: .12rem; }
+  .lbox .ld span { font-size: .73rem; line-height: 1.6; color: var(--ink-soft); }
+  .l-com .lbox.pay { border-color: #4E9AC4; }
+  .l-com .lbox.pay .lt { background: #4E9AC4; color: #fff; border-bottom-color: #4E9AC4; }
+  .l-add .lbox.pay { border-color: #E3A008; }
+  .l-add .lbox.pay .lt { background: #E3A008; color: #fff; border-bottom-color: #E3A008; }
+  .l-md .lbox.pay { border-color: #6FB98A; }
+  .l-md .lbox.pay .lt { background: #6FB98A; color: #fff; border-bottom-color: #6FB98A; }
+  .split2 { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+  .split2.stack { grid-template-columns: 1fr; }
+  .branch { display: flex; flex-direction: column; gap: .3rem; }
+  .brhead {
+    font-size: .72rem; font-weight: 700; color: var(--ink); text-align: center;
+    padding-bottom: .3rem; border-bottom: 1px solid var(--rule);
+  }
+  .mini { border: 1px solid var(--rule); background: var(--paper); padding: .35rem .5rem; }
+  .mini b { display: block; font-size: .74rem; line-height: 1.5; color: var(--ink); }
+  .mini span { display: block; font-size: .7rem; line-height: 1.55; color: var(--ink-soft); }
+  .merge { text-align: center; color: var(--ink-faint); font-size: 1rem; letter-spacing: .35em; line-height: 1.2; }
+  .mergelabel {
+    font-size: .68rem; letter-spacing: .14em; font-weight: 700; color: var(--ink-faint);
+    text-align: center; padding-bottom: .1rem;
+  }
+  .todo {
+    border: 1px dashed var(--pending); background: var(--pending-bg);
+    padding: .4rem .6rem; font-size: .73rem; line-height: 1.6; color: var(--pending);
+  }
+  .goalbar {
+    margin-top: 1rem; border: 1px solid var(--agreed); background: var(--agreed-bg);
+    padding: .7rem .9rem; display: grid; grid-template-columns: 1fr 1fr; gap: .8rem;
+  }
+  .goalbar div { font-size: .78rem; line-height: 1.6; color: var(--ink); }
+  .goalbar strong { display: block; color: var(--agreed); }
+  @media (max-width: 860px) {
+    .lanes { grid-template-columns: 1fr; }
+    .goalbar { grid-template-columns: 1fr; }
+  }
+  @media print {
+    .lanes { break-inside: avoid; padding: .7rem .5rem; }
+    .lbox .ld span, .lanenote { font-size: 8pt; }
+  }
+</style>
+
+<style>
+  .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.num, th.num { text-align: right; }
+  .ref { font-size: .74rem; color: var(--ink-faint); white-space: nowrap; }
+  tbody tr.sum td { border-top: 1px solid var(--rule); font-weight: 700; background: var(--rule-soft); }
+  .note { font-size: .8rem; color: var(--ink-soft); }
+  .qblock { border: 1px solid var(--rule); padding: 1rem 1.15rem; display: flex; flex-direction: column; gap: .6rem; }
+  .qblock .qh { font-weight: 700; font-size: .92rem; color: var(--accent); }
+  .qblock .qt { font-size: .88rem; line-height: 1.8; color: var(--ink); border-left: 2px solid var(--rule); padding-left: .8rem; }
+  .qblock ul.plain li { font-size: .84rem; }
+  .ans { font-size: .86rem; line-height: 1.8; }
+  .ans b { color: var(--accent); }
+  @media print { .pagebreak { break-before: page; } .qblock { break-inside: avoid; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">常設コナン ／ 委員会組成にともなう費用整理</div>
+    <h1>料率・固定費の一覧</h1>
+    <p class="lead">組合契約書・別紙1・別紙2に定められた、委員会で発生するすべての料率と固定費を一覧にしたもの。金額はすべて消費税等別。</p>
+    <div class="meta">
+      <span>出典：常設カフェ共同事業組合契約書（CY261010版）</span>
+      <span>出資金請求書（M20250525／ShoPro宛）</span>
+      <span>2026年11月5日時点</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>1. 出資と分配</h2>
+    <div class="scroll">
+      <table>
+        <colgroup><col style="width:10rem"><col style="width:10rem"><col style="width:6rem"><col></colgroup>
+        <thead><tr><th>組合員</th><th class="num">出資金</th><th class="num">出資比率</th><th>備考</th></tr></thead>
+        <tbody>
+          <tr><td>ShoPro</td><td class="num">60,000,000円</td><td class="num">30%</td><td>不課税。2026年5月29日付で請求書発行済（M20250525）</td></tr>
+          <tr><td>LTR（幹事会社）</td><td class="num">100,000,000円</td><td class="num">50%</td><td>不課税。5月請求</td></tr>
+          <tr><td>東急レク</td><td class="num">40,000,000円</td><td class="num">20%</td><td>不課税。<span class="pill p-wip">払込タイミングが他2社と異なる</span></td></tr>
+          <tr class="sum"><td>合計</td><td class="num">200,000,000円</td><td class="num">100%</td><td>委員会口座へ振込（第3条第1項・第2項）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="scroll">
+      <table>
+        <colgroup><col style="width:13rem"><col><col style="width:7rem"></colgroup>
+        <thead><tr><th>項目</th><th>内容</th><th>根拠</th></tr></thead>
+        <tbody>
+          <tr><td>収益分配の割合</td><td>出資比率どおり　ShoPro 30% ／ LTR 50% ／ 東急レク 20%</td><td class="ref">第12条第1項</td></tr>
+          <tr><td>分配可能収益</td><td>収入 −（費用＋積立金）。収入＝出資金、飲食・テイクアウト売上、予約料売上、本グッズ販売手数料、有償イベント売上</td><td class="ref">第1条・第10条第1項</td></tr>
+          <tr><td>計算期間</td><td>毎年1月1日〜12月31日（初回は本契約締結日〜2026年12月31日）</td><td class="ref">第12条第2項</td></tr>
+          <tr><td>決算日・支払</td><td>決算日は各計算期間の最終日。分配金の支払は決算日から3か月以内（翌年3月31日まで）。初回は決算日2027年12月31日・支払2028年3月31日</td><td class="ref">第12条第3項・第5項</td></tr>
+          <tr><td>追加出資</td><td>預金残高が80,000,000円を下回った場合に幹事会社が要請できる。総組合員の同意が必要。追加出資後は累計出資額で出資比率を再計算</td><td class="ref">第17条・第14条第1項⑦</td></tr>
+          <tr><td>振込手数料</td><td>委員会負担</td><td class="ref">第12条第6項・別紙2注1</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. 売上に連動する料率</h2>
+    <div class="scroll">
+      <table>
+        <colgroup><col style="width:14rem"><col style="width:5rem"><col><col style="width:11rem"><col style="width:8rem"></colgroup>
+        <thead><tr><th>項目</th><th class="num">料率</th><th>計算基礎</th><th>支払の向き</th><th>根拠</th></tr></thead>
+        <tbody>
+          <tr><td>本グッズ販売手数料</td><td class="num">20%</td><td>本グッズの売上（税別）</td><td>LTR → 委員会<br><span class="note">＝委員会の収入</span></td><td class="ref">第7条第2項①</td></tr>
+          <tr><td>運営手数料①<br>店舗運営・飲食プロデュース委託費</td><td class="num">2%</td><td>委員会売上高（税別）</td><td>委員会 → LTR</td><td class="ref">第9条第2項／別紙2 No.7</td></tr>
+          <tr><td>運営手数料②<br>店舗運営人材のマネジメント</td><td class="num">1%</td><td>総取扱高（税別）</td><td>委員会 → LTR<br><span class="note">立替費用のリスク負担分を含む</span></td><td class="ref">第9条第2項／別紙2 No.9</td></tr>
+          <tr><td>運営手数料③<br>食材・資材仕入れマネジメント</td><td class="num">2%</td><td>飲食・テイクアウト売上高（税別）</td><td>委員会 → LTR<br><span class="note">立替費用のリスク負担分を含む</span></td><td class="ref">第9条第2項／別紙2 No.8</td></tr>
+          <tr><td>ライセンス料①　飲食</td><td class="num">5%</td><td>飲食物・テイクアウト飲食物の税抜希望小売価格 × 販売数量</td><td>委員会 → ShoPro</td><td class="ref">第11条第2項①</td></tr>
+          <tr><td>ライセンス料②　予約</td><td class="num">5%</td><td>常設カフェ予約価格（税別）× 予約販売数量</td><td>委員会 → ShoPro</td><td class="ref">第11条第2項②</td></tr>
+          <tr><td>ライセンス料③　特典</td><td class="num">10%</td><td>最終納入価格（税別）× 製造数量</td><td>委員会 → ShoPro</td><td class="ref">第11条第2項③</td></tr>
+          <tr><td>本グッズのロイヤリティ</td><td class="num"><span class="pill p-wip">未確定</span></td><td>本契約には料率の記載なし。LTRとShoProの商品化許諾契約で別途合意</td><td>LTR → ShoPro<br><span class="note">委員会の外側</span></td><td class="ref">第7条第2項②</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">運営手数料の支払時期・方法は毎月末締め・翌月末日までに、委員会口座からLTRの指定口座へ振込または振替（第9条第3項）。</p>
+
+    <h3>売上の定義（3つの基礎は範囲が異なるため単純合算できない）</h3>
+    <div class="scroll">
+      <table>
+        <colgroup><col style="width:12rem"><col></colgroup>
+        <thead><tr><th>用語</th><th>範囲</th></tr></thead>
+        <tbody>
+          <tr><td>総取扱高</td><td>常設カフェ全体の売上（店舗で発生する売上の総額）。<b>本グッズの売上を含む</b>が、本グッズの販売手数料は含まない</td></tr>
+          <tr><td>委員会売上高</td><td>委員会の会計上の売上。<b>本グッズの販売手数料を含む</b>が、本グッズの売上は含まない</td></tr>
+          <tr><td>飲食・テイクアウト売上高</td><td>店内飲食および持ち帰り商品の販売による売上。消費税・値引き・返品・キャンセルその他の費用を除いた金額</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="pagebreak">
+    <h2>3. 月額で固定的に発生する費用</h2>
+    <div class="scroll">
+      <table>
+        <colgroup><col style="width:14rem"><col style="width:9rem"><col><col style="width:8rem"></colgroup>
+        <thead><tr><th>項目</th><th class="num">月額</th><th>内容・条件</th><th>根拠</th></tr></thead>
+        <tbody>
+          <tr><td>幹事手数料</td><td class="num">800,000円</td><td>LTRへ。開業月から本契約終了日まで。<b>日割計算は行わず当月分は全額</b></td><td class="ref">第9条第1項／別紙2 No.3</td></tr>
+          <tr><td>賃料</td><td class="num">1,349,000円</td><td>東急レクが委員会を代表するLTRに請求。対象は渋谷ストリーム4階「トルクカフェ」区画（222.97㎡／67.45坪）</td><td class="ref">別紙1 No.2／別紙2 No.10</td></tr>
+          <tr><td>販売促進費</td><td class="num">101,175円</td><td>共同広告・共同催事に要する費用。東急レクが請求</td><td class="ref">別紙1 No.3／別紙2 No.11</td></tr>
+          <tr><td>テナント会費</td><td class="num">20,000円</td><td>出店者と賃貸人（東急株式会社）で組織するテナント会の運営費用</td><td class="ref">別紙1 No.4／別紙2 No.12</td></tr>
+          <tr class="sum"><td>月額固定費 計</td><td class="num">2,270,175円</td><td>上記4項目の合計（税別）</td><td class="ref">—</td></tr>
+          <tr><td>積立金</td><td class="num">800,000円</td><td>費用ではなく<b>別途管理する資金</b>。解散時に原状回復費用・違約金・赤字補填を控除し、残額は出資比率で分配</td><td class="ref">第12条第8項</td></tr>
+          <tr class="sum"><td>資金繰り上の月額 計</td><td class="num">3,070,175円</td><td>固定費＋積立金</td><td class="ref">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">上記のほかに、食材原価・人件費・水道光熱費など運営に伴う変動費が発生する。委員会における各業務の人件費は各組合員が各々で負担する（第10条第5項）。</p>
+  </section>
+
+  <section>
+    <h2>4. 一時的に発生する費用・資金</h2>
+    <div class="scroll">
+      <table>
+        <colgroup><col style="width:14rem"><col style="width:9rem"><col><col style="width:8rem"></colgroup>
+        <thead><tr><th>項目</th><th class="num">金額</th><th>内容・条件</th><th>根拠</th></tr></thead>
+        <tbody>
+          <tr><td>開業プロデュース委託費</td><td class="num">43,000,000円<br><span class="note">上限</span></td><td>LTRへ、2027年3月31日までに支払。企画・ブランディング、店舗開発・空間デザイン、メニュー開発・オペレーション設計、開業準備・トレーニング・立ち上げの各費用を含む</td><td class="ref">第16条／別紙2 No.4</td></tr>
+          <tr><td>差入保証金（敷金）</td><td class="num">16,188,000円</td><td>費用ではなく<b>資産</b>。出資金から東急レクへ差し入れ、賃貸借終了時に残額が返還され、委員会財産に組み入れ</td><td class="ref">別紙1 No.5／第3条第5項・第15条第3項</td></tr>
+          <tr><td>内装施工費・厨房機器購入額</td><td class="num">実費</td><td>LTRが発注し、実費を委員会に請求</td><td class="ref">別紙2 No.14</td></tr>
+          <tr><td>原状回復費用</td><td class="num"><span class="pill p-wip">未確定</span></td><td>積立金から充当。中途解約・引渡前解約の違約金が発生する場合は当該違約金。東京都の指摘により継続不可となった場合は東急レク負担</td><td class="ref">第12条第8項／第23条第2項</td></tr>
+          <tr><td>解散時の人件費</td><td class="num">前月総人件費<br>× 3か月</td><td>運営期間満了以外の事由で解散し、正規雇用の従業員がいる場合にLTRが委員会に請求できる。解散決定から運営終了まで3か月の猶予があるときは発生しない</td><td class="ref">第23条第6項</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>5. 実費精算・都度協議の費用</h2>
+    <div class="scroll">
+      <table>
+        <colgroup><col style="width:14rem"><col style="width:11rem"><col><col style="width:8rem"></colgroup>
+        <thead><tr><th>項目</th><th>対価</th><th>請求の向き・条件</th><th>根拠</th></tr></thead>
+        <tbody>
+          <tr><td>素材提供費</td><td>都度協議</td><td>ShoPro → 委員会。本件著作物の素材の手配および借受</td><td class="ref">別紙2 No.1</td></tr>
+          <tr><td>素材貸与費</td><td>都度協議</td><td>有償の場合の条件はShoProと幹事会社の協議により定める</td><td class="ref">第11条第4項</td></tr>
+          <tr><td>告知・PRの企画・制作協力</td><td>都度協議</td><td>各当事者。対価・実費・負担いずれも都度協議</td><td class="ref">別紙2 No.2</td></tr>
+          <tr><td>WEB制作（予約・プロモーション）</td><td>運営委託費＋制作実費</td><td>LTR → 委員会</td><td class="ref">別紙2 No.5</td></tr>
+          <tr><td>原材料調達費・食材手数料</td><td>実費＋売上×2%</td><td>LTR → 委員会。料率部分は運営手数料③と同一</td><td class="ref">別紙2 No.8</td></tr>
+          <tr><td>従業員賃金相当額・人材手配手数料</td><td>実費＋総取扱高×1%</td><td>LTR → 委員会。料率部分は運営手数料②と同一</td><td class="ref">別紙2 No.9</td></tr>
+          <tr><td>オペレーションの構築</td><td>なし</td><td>収益分配の割合に反映済み</td><td class="ref">別紙2 No.6</td></tr>
+          <tr><td>無償イベントの追加実費</td><td>実費</td><td><b>原則として東急レクが負担</b>。著作物使用料・光熱費・特別清掃費・臨時人件費・イベント専用消耗品費など</td><td class="ref">第10条第4項①</td></tr>
+          <tr><td>有償イベント</td><td>都度協議</td><td>費用負担と収益分配をステアリングコミッティで協議し、全組合員で覚書を別途締結</td><td class="ref">第10条第4項②</td></tr>
+          <tr><td>別紙2に定めのない費用</td><td>実費</td><td>別途合意がある場合を除き、<b>出資比率に応じて各組合員が負担</b></td><td class="ref">第10条第2項</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">組合員から委員会に請求する費用は、当該組合員が幹事会社に請求書を発行し、幹事会社が受領日を含む月の翌月末日までに委員会口座から送金する（別紙2注1）。</p>
+  </section>
+
+  <section class="pagebreak">
+    <h2>6. 資産・リース・減価償却</h2>
+    <div class="scroll">
+      <table>
+        <colgroup><col style="width:14rem"><col><col style="width:8rem"></colgroup>
+        <thead><tr><th>項目</th><th>内容</th><th>根拠</th></tr></thead>
+        <tbody>
+          <tr><td>耐用年数</td><td><b>一律5年（60か月）で期間設定し算出</b>。内装・什器・リース資産に適用<span class="pill p-ok">決定</span></td><td class="ref">社内決定</td></tr>
+          <tr><td>リース契約への切替</td><td>事業費用が出資金総額200,000,000円を超過する場合、ステアリングコミッティの合意を得たうえで、幹事会社が開業に必要な什器等の資産の一部をリース契約とし、<b>費用計上に切り替えることができる</b></td><td class="ref">第3条第4項</td></tr>
+          <tr><td>リース契約の締結</td><td>デッドロック事由＝総組合員の同意が必要</td><td class="ref">第14条第1項⑥</td></tr>
+          <tr><td>譲受資産の帰属</td><td>資産譲渡契約により東急レクから委員会へ譲渡される資産（運営期間中の内装施工物・厨房機器を含む）は<b>委員会の組合財産として組合員の共有</b>。解散時の取扱いは誠実協議</td><td class="ref">第7条第3項</td></tr>
+          <tr><td>財産の処分・譲受け</td><td>1,000万円未満＝ステアリングコミッティの決定事項／1,000万円以上＝デッドロック事由</td><td class="ref">第13条第5項・第14条第1項①</td></tr>
+          <tr><td>借入</td><td>1,000万円以上の借入はデッドロック事由</td><td class="ref">第14条第1項②</td></tr>
+          <tr><td>残余財産</td><td>債務弁済後の残余財産は出資比率に応じて分配。債務が残る場合も出資比率で負担</td><td class="ref">第23条第3項・第4項</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">償却費がどのPLに乗るかは資産の帰属で決まる。内装施工物・厨房機器は第7条第3項により委員会の組合財産となるため、委員会のPLで償却する整理になる。リースに切り替えた分は資産計上せず費用計上となるため、同じ什器でも切替の有無で取扱いが変わる。</p>
+  </section>
+
+  <section>
+    <h2>7. 消費税の区分</h2>
+    <div class="scroll">
+      <table>
+        <colgroup><col style="width:10rem"><col></colgroup>
+        <thead><tr><th>区分</th><th>該当する項目</th></tr></thead>
+        <tbody>
+          <tr><td>不課税</td><td>出資金（ShoPro宛請求書も不課税で発行済）、分配金</td></tr>
+          <tr><td>課税10%</td><td>幹事手数料、運営手数料①②③、ライセンス料①②③、賃料、販売促進費、テナント会費、開業プロデュース委託費、内装施工費・厨房機器、本グッズ販売手数料</td></tr>
+          <tr><td>課税8%（軽減）</td><td>テイクアウト飲食の売上、飲食原材料の仕入</td></tr>
+          <tr><td>非課税</td><td>保証金（敷金）の差入・返還、支払利息相当額</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">消費税は各組合員が自ら申告・納付する義務を負い、委員会は情報提供のみを行う（第26条第2項）。組合員全員が適格請求書発行事業者であることの届出は幹事会社の業務（第4条第1項⑦）。</p>
+  </section>
+
+  <section class="pagebreak">
+    <h2>8. 確認事項</h2>
+
+    <div class="qblock">
+      <div class="qh">① 出資金の振込期日</div>
+      <p class="qt">東急レクだけ出資金のタイミングが異なり、他は5月に請求書発行をしております。第3条第2項の日付を2026年6月30日にするのが適切でしょうか。</p>
+      <p class="ans"><b>6月30日で整合します。</b>ShoPro宛の請求書は請求日が2026年5月29日のため、翌月末＝6月30日が支払期日となり、LTR分も同様の建て付けになります。</p>
+      <p class="ans">ただし<b>締結日が11月になるため、契約書に書いた払込期日が締結時点ですでに過去日</b>になります。第3条第2項の後段「本契約締結が同日以降になるときは本契約締結後速やかに」で読めますが、以下のいずれかを入れておくと齟齬が残りません。</p>
+      <ul class="plain">
+        <li>「2026年6月30日。ただし東急レクについては本契約締結後速やかに」と組合員ごとに書き分ける</li>
+        <li>「本契約締結日時点ですでに払い込まれた出資金は、本項に基づく払込みとして取り扱う」旨の確認文言を加える</li>
+      </ul>
+      <p class="ans">あわせて、<b>東急レクの40,000,000円が未入金のままだと預金残高が早期に80,000,000円を下回る</b>ため、②の資金不足ラインと連動する論点になります。</p>
+    </div>
+
+    <div class="qblock">
+      <div class="qh">② 資金不足のライン</div>
+      <p class="qt">念のための確認と、前川さん・成瀬さんが新しくメンバーに加わっていただいたので共有もかねて、資金不足のラインはキャッシュフローを踏まえ80,000,000円で設定で確定で進行いたします。</p>
+      <p class="ans">確定で進める場合、<b>角括弧を外す箇所は契約書内の5か所</b>です。</p>
+      <ul class="plain">
+        <li>第17条第1項（追加出資の要請ライン）</li>
+        <li>第17条第6項①（30日以内の報告）</li>
+        <li>第17条第6項②（60日以内のデッドロック移行協議）</li>
+        <li>第17条第6項③（90日以内の追加出資またはデッドロック移行）</li>
+        <li>第23条第1項③（解散事由）</li>
+      </ul>
+      <p class="ans">金額の位置づけは、<b>出資金総額200,000,000円の40%</b>、かつ<b>東急レクの出資額40,000,000円の2倍</b>にあたります。月額固定費2,270,175円（積立金を含めると3,070,175円）に対しては相応の厚みがありますが、食材原価・人件費を含む実際の月次支出で何か月分にあたるかは収支計画側で確認が必要です。</p>
+      <p class="ans">なお、<b>第12条第8項の積立金（月額800,000円）とは別物</b>です。積立金は原状回復・赤字補填の引当であり、資金不足ラインは追加出資・解散の判定値になります。</p>
+    </div>
+
+    <div class="qblock">
+      <div class="qh">③ 締結日</div>
+      <p class="qt">捺印がまわるスケジュール感を考えると11月末、開業前を希望する場合は11月19日より前で考えておりますが、これまでのLTRの開業での契約書の日付設定方針があればご教示いただけますと幸いです。</p>
+      <p class="ans"><b>契約の建て付け上は、開業前（11月19日より前）での締結が整合的です。</b>締結日が効いてくるのは以下の条項です。</p>
+      <ul class="plain">
+        <li><b>第12条第2項</b>　初回の分配計算期間の起点が締結日。開業後に締結すると、開業日から締結日までの損益が初回計算期間から外れる</li>
+        <li><b>第14条第1項⑥⑦</b>　リース契約の締結・追加出資は総組合員の同意を要する。開業前に発生する什器リースの意思決定を正式に行うには締結済みである必要がある</li>
+        <li><b>第4条第1項②</b>　開業に係る費用の幹事会社による立替支払いの根拠が、締結前は契約外になる</li>
+        <li><b>第24条第1項</b>　本契約の有効期間の起点が締結日</li>
+      </ul>
+      <p class="ans">一方、<b>第9条第1項の幹事手数料は「開業月から」</b>の起算であり、締結日には依存しません。第16条の開業プロデュース委託費も支払期限が2027年3月31日固定のため同様です。</p>
+      <p class="ans">あわせて確認が必要な点として、<b>第8条第1項①の「2026年9月1日までに本常設カフェスペースの引渡を完了」は、締結時点ですでに過去日</b>になります。既履行であることを確認する文言にするか、日付自体を見直すかの整理が要ります。捺印スケジュールが開業に間に合わない場合は、締結日を遡らせずに「本契約は2026年●月●日に遡って効力を生じる」旨の効力発生日条項を置く方法もあります。</p>
+      <p class="ans">これまでのLTRの開業案件での日付設定方針については、手元の資料からは確認できないため、社内の過去案件での確認が必要です。</p>
+    </div>
+  </section>
+
+  <section class="pagebreak">
+    <h2>9. 契約書で未確定・要確認の箇所</h2>
+    <div class="scroll">
+      <table>
+        <colgroup><col style="width:5rem"><col style="width:13rem"><col><col style="width:7rem"></colgroup>
+        <thead><tr><th>区分</th><th>箇所</th><th>内容</th><th>根拠</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill p-no">空欄</span></td><td>出資金の払込期日</td><td>［●年●月●日］のまま。①のとおり2026年6月30日で確定予定</td><td class="ref">第3条第2項</td></tr>
+          <tr><td><span class="pill p-no">空欄</span></td><td>締結日</td><td>2026年●月●日のまま。③のとおり開業前を想定</td><td class="ref">末尾署名欄</td></tr>
+          <tr><td><span class="pill p-wip">角括弧</span></td><td>資金不足ライン</td><td>［80,000,000］円が5か所。②のとおり確定で角括弧を外す</td><td class="ref">第17条・第23条</td></tr>
+          <tr><td><span class="pill p-wip">角括弧</span></td><td>ステアリングコミッティの開催頻度</td><td>［毎月1回］のまま</td><td class="ref">第13条第6項</td></tr>
+          <tr><td><span class="pill p-wip">不整合</span></td><td>初回の決算日</td><td>第12条第2項は初回計算期間を「締結日〜2026年12月31日」とする一方、第3項は初回決算日を「2027年12月31日」、第5項は初回支払を「2028年3月31日」とする。初回計算期間を2027年12月31日までとする意図であれば第2項の修正が必要</td><td class="ref">第12条第2項〜第5項</td></tr>
+          <tr><td><span class="pill p-wip">要確認</span></td><td>本グッズのロイヤリティ料率</td><td>本契約には料率の記載がなく、LTRとShoProの商品化許諾契約で別途合意。委員会のPLには乗らないが、物販の収支には効く</td><td class="ref">第7条第2項②</td></tr>
+          <tr><td><span class="pill p-wip">要確認</span></td><td>顧問会計事務所の費用</td><td>幹事会社の業務として月次決算・会計処理は定めがあるが、外部会計事務所費用の負担区分は別紙2に記載がない</td><td class="ref">第4条第1項⑤</td></tr>
+          <tr><td><span class="pill p-wip">要確認</span></td><td>保険料</td><td>LTRが運営・飲食提供に必要な保険に加入する定めはあるが、保険料の負担が別紙2に記載されていない</td><td class="ref">第7条第1項⑫</td></tr>
+          <tr><td><span class="pill p-wip">要確認</span></td><td>別紙2 No.5の「運営委託費」</td><td>WEB制作の対価として「運営委託費」とあるが、第9条第2項の運営手数料（2%／1%／2%）に含まれるのか別建てなのかが読み取れない</td><td class="ref">別紙2 No.5</td></tr>
+          <tr><td><span class="pill p-wip">要確認</span></td><td>出資金の振込先口座</td><td>請求書の振込先がみずほ銀行青山支店（普通3341885／株式会社エルティーアール）。第3条第2項は「委員会口座に振り込む方法により払い込む」としており、この口座が委員会専用口座であることの確認が必要</td><td class="ref">第3条第2項・第1条</td></tr>
+          <tr><td><span class="pill p-wip">要確認</span></td><td>引渡期限</td><td>東急レクの引渡期限が2026年9月1日で、締結日より前になる</td><td class="ref">第8条第1項①</td></tr>
+          <tr><td><span class="pill p-no">未記入</span></td><td>別紙3 ShoPro欄</td><td>業務執行組合人・責任者・代理人が未記入（東急レク・LTRは記入済）</td><td class="ref">別紙3</td></tr>
+          <tr><td><span class="pill p-no">未添付</span></td><td>別紙1-2 図面</td><td>対象区画の図面が未添付</td><td class="ref">別紙1-2</td></tr>
+          <tr><td><span class="pill p-wip">要確認</span></td><td>中途解約の違約金</td><td>東急レクと東急株式会社の定期建物賃貸借契約の条件を踏まえて規定。賃借人であるLTRが条件を他の組合員に提示する</td><td class="ref">別紙1 No.8</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="foot">金額はすべて消費税等別。出典は常設カフェ共同事業組合契約書（CY261010版）、別紙1「カフェスペース利用条件」、別紙2「実施業務および費用分担」、およびShoPro宛出資金請求書（M20250525）。</p>
+
+</div>
+
+</body>
+</html>
