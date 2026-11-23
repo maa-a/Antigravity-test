@@ -1,4 +1,5 @@
-// POS蓄積：フォルダ内のPOS CSV（商品別売上）をすべて読み込み、標準の列にそろえて1つの表にする
+// POS蓄積：フォルダ内のPOS CSV（商品別売上）を読み込み、標準の列にそろえて1つの表にする
+// 取込対象が「日別ファイルのみ」のときは、ファイル名の2つの日付が同じ（1日分）ファイルだけを取り込む
 // 計上月：CSVに日付列があればその月、なければファイル名の8桁の日付（yyyymmdd）の1つ目の月
 let
     Settings = Excel.CurrentWorkbook(){[Name = "tblSettings"]}[Content],
@@ -8,6 +9,7 @@ let
     Encoding = Number.From(GetSetting("文字コード")),
     Delimiter = GetSetting("区切り文字"),
     EventKey = GetSetting("催事ファイル名キーワード"),
+    ImportAll = GetSetting("取込対象") = "すべて",
     T = (x) as text => if x = null then "" else Text.Trim(Text.From(x)),
     NormRate = (x) as nullable text =>
         let
@@ -44,9 +46,12 @@ let
         each Text.Lower([Extension]) = ".csv" and not Text.StartsWith([Name], "~")),
     Files1 = Table.AddColumn(Files0, "期間開始",
         each let d = DigitRuns([Name]) in if List.Count(d) >= 1 then ToDate(d{0}) else null, type nullable date),
-    Files = Table.AddColumn(Files1, "期間終了",
+    Files2 = Table.AddColumn(Files1, "期間終了",
         each let d = DigitRuns([Name]) in if List.Count(d) >= 2 then ToDate(d{1}) else [期間開始], type nullable date),
-    // 期間が重なるファイル（同じ売上の二重取込）を検出。店舗と催事は別々に判定
+    // 複数日の期間のファイル（週次など）は照合用。取り込まない（「週次照合」クエリで使う）
+    Files = if ImportAll then Files2 else Table.SelectRows(Files2, each
+        not ([期間開始] <> null and [期間終了] <> null and [期間終了] > [期間開始])),
+    // 期間が重なるファイル（同じ日の二重取込）を検出。店舗と催事は別々に判定
     Periods = Table.Buffer(Table.SelectColumns(Files, {"Name", "期間開始", "期間終了"})),
     IsEvent = (n as text) as logical => EventKey <> "" and Text.Contains(n, EventKey),
     Overlap = (n as text, s as nullable date, e as nullable date) as logical =>
