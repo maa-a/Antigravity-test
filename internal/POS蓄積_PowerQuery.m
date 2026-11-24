@@ -103,7 +103,8 @@ let
             k0 = if T([区分_商品]) <> "" then T([区分_商品])
                  else if T([区分_部門]) <> "" then T([区分_部門]) else "未設定"
         in
-            if k0 = "物販" and IsEvent([ファイル名]) then "POPUP催事物販" else k0, type text),
+            if k0 = "物販" and IsEvent([ファイル名]) then "POPUP催事物販"
+            else if k0 = "スーベニア" and IsEvent([ファイル名]) then "POPUP催事スーベニア" else k0, type text),
     AddRate = Table.AddColumn(AddCategory, "税率区分", each
         let r = NormRate([税率_部門])
         in if r <> null then r
